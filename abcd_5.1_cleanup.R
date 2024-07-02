@@ -29,6 +29,7 @@ source(paste0(source_folder,"R/scripts/centile_functions_ABCD.r"))
 #specify the locations for ABCD 5.1 data files
 #imaging files
 abcd_vol_aseg_file <- paste0(raw_tables_folder,"mri_y_smr_vol_aseg.csv")
+abcd_vol_dsk_file <- paste0(raw_tables_folder,"mri_y_smr_vol_dsk.csv")
 abcd_mri_adm_file <- paste0(raw_tables_folder,"mri_y_adm_info.csv")
 #imaging QC file
 abcd_mri_qc_file <- paste0(raw_tables_folder,"mri_y_qc_incl.csv")
@@ -40,8 +41,8 @@ abcd_ltrack_file <- paste0(raw_tables_folder,"abcd_y_lt.csv")
 abcd_screen_file <- paste0(raw_tables_folder,"abcd_p_screen.csv")
 
 #Load the data files specified above 
-abcd_data <- load_data(names = c("abcd_vol_aseg", "abcd_mri_adm", "abcd_mri_qc", "abcd_demo", "abcd_devhx", "abcd_medhx", "abcd_ltrack"), 
-                       c(abcd_vol_aseg_file, abcd_mri_adm_file, abcd_mri_qc_file, abcd_demo_file, abcd_devhx_file, abcd_medhx_file,  abcd_ltrack_file))
+abcd_data <- load_data(names = c("abcd_vol_aseg", "abcd_vol_dsk", "abcd_mri_adm", "abcd_mri_qc", "abcd_demo", "abcd_devhx", "abcd_medhx", "abcd_ltrack"), 
+                       c(abcd_vol_aseg_file, abcd_vol_dsk_file, abcd_mri_adm_file, abcd_mri_qc_file, abcd_demo_file, abcd_devhx_file, abcd_medhx_file,  abcd_ltrack_file))
 
 abcd_long <- Reduce(function(x, y) merge(x, y, by = c("src_subject_id", "eventname"), all=TRUE), abcd_data, accumulate=FALSE)
 
@@ -247,7 +248,7 @@ vars_to_save <- c("src_subject_id", "eventname", "sex_baseline", "gestAge", "PTB
                   "mri_info_deviceserialnumber", "mri_info_softwareversion",
                   names(abcd_long)[grep("smri", names(abcd_long))], "totalWM_cb", "totalWM_crb", "totalCTX_crb")
 
-abcd_long_toSave <- abcd_long_toSave %>% select(all_of(vars_to_save)) #65 variables
+abcd_long_toSave <- abcd_long_toSave %>% select(all_of(vars_to_save)) #136 variables
 
 write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_dxfilter_062924.csv"))
 write.csv(abcd_long, file = paste0(out_folder,"abcd5.1_long_full_062924.csv"))
@@ -267,5 +268,3 @@ write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_dx
 
 #test <- read.csv(paste0(out_folder,"abcd5.1_long_selectVars_dxfilter_062924.csv"))
 #testW <- read.csv(paste0(out_folder,"abcd5.1_wide_full_062924.csv"))
-
-paste0(source_folder,"
