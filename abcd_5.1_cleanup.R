@@ -39,10 +39,16 @@ abcd_devhx_file <- paste0(raw_tables_folder,"ph_p_dhx.csv")
 abcd_medhx_file <- paste0(raw_tables_folder,"ph_p_mhx.csv")
 abcd_ltrack_file <- paste0(raw_tables_folder,"abcd_y_lt.csv")
 abcd_screen_file <- paste0(raw_tables_folder,"abcd_p_screen.csv")
+abcd_gen_file <- paste0(raw_tables_folder,"gen_y_pihat.csv")
 
 #Load the data files specified above 
 abcd_data <- load_data(names = c("abcd_vol_aseg", "abcd_vol_dsk", "abcd_mri_adm", "abcd_mri_qc", "abcd_demo", "abcd_devhx", "abcd_medhx", "abcd_ltrack"), 
-                       c(abcd_vol_aseg_file, abcd_vol_dsk_file, abcd_mri_adm_file, abcd_mri_qc_file, abcd_demo_file, abcd_devhx_file, abcd_medhx_file,  abcd_ltrack_file))
+                       c(abcd_vol_aseg_file, abcd_vol_dsk_file, abcd_mri_adm_file, abcd_mri_qc_file, abcd_demo_file, abcd_devhx_file, abcd_medhx_file,abcd_ltrack_file))
+
+## Jul 4th 2024 This field is populated with err, when compared against the gen_y_pihat data, it should be "52671" for birth ID. Also makes sense, because there is only one row with this family ID.
+# Cross-checked all other rows for family ID and birth ID against gen_y_pihat data, they are all the same with the abcd_ltrack data. So I will use the abcd_ltrack data.
+# Changing this field here manually to avoid issues down the line in case I decide to use birth ID for any exclusions/analyses.
+abcd_data$abcd_ltrack[which(abcd_data$abcd_ltrack$rel_family_id == 5267),"rel_birth_id"] <- 52671
 
 abcd_long <- Reduce(function(x, y) merge(x, y, by = c("src_subject_id", "eventname"), all=TRUE), abcd_data, accumulate=FALSE)
 
@@ -53,9 +59,11 @@ abcd_screener <- read.csv(abcd_screen_file) %>% select(-eventname)
 abcd_long <- merge(abcd_long, abcd_screener, by = "src_subject_id", all = TRUE)
 
 #calculate total mri phenotypes adding RH and LH
+# !!! Need to figure out if there is total cortical GM available somewhere in the aseg segmentation data
 abcd_long$totalWM_cb <- abcd_long$smri_vol_scs_cbwmatterlh + abcd_long$smri_vol_scs_cbwmatterrh
+#abcd_long$totalGM_cb <- smri_vol_scs_suprateial
 abcd_long$totalWM_crb <- abcd_long$smri_vol_scs_crbwmatterlh + abcd_long$smri_vol_scs_crbwmatterrh
-abcd_long$totalCTX_crb <- abcd_long$smri_vol_scs_crbcortexlh + abcd_long$smri_vol_scs_crbcortexrh
+abcd_long$totalGM_crb <- abcd_long$smri_vol_scs_crbcortexlh + abcd_long$smri_vol_scs_crbcortexrh
 
 #convert all events to "months" baseline = 0
 abcd_long$year <- NA
@@ -109,7 +117,6 @@ sum(dup_indices) #0 duplicates - what we want.
 rm(dup_indices)
 rm(baseline_dev, fouryear_dev, base_ids_na, ids, ids_base, baseline_demo)
 
-
 #Calculate post-conceptual-weeks at time of scan. Using 4.3 weeks/month (average) + gestAge (when available)
 abcd_long$PCW_at_scan <- as.numeric(abcd_long$interview_age)*4.34 + abcd_long$gestAge
 sum(is.na(abcd_long$PCW_at_scan)) #1243 NAs, 1235 gestAge NAs + 8 interview_age NAs
@@ -122,7 +129,7 @@ abcd_long$sex_baseline <- as.factor(ifelse(abcd_long$sex_baseline %in% "1", "M",
                                            ifelse(abcd_long$sex_baseline %in% "2", "F", 
                                                   ifelse(abcd_long$sex_baseline %in% "3", "I", NA))))
 
-#Deal with QC
+#Remove based on QC image inclusion recommendation for T1W images
 #use the include/don't include label for t1w
 sum(is.na(abcd_long$smri_vol_scs_allventricles))
 #remove rows without imaging data -- using all ventricle volume to check
@@ -132,6 +139,74 @@ table(abcd_long$eventname)
 sum(is.na(abcd_long$imgincl_t1w_include))
 abcd_long <- abcd_long %>% filter(imgincl_t1w_include == 1) #22166 obs left. (longitudinal)
 
+#Subset baseline data to remove siblings
+baseline_data <- abcd_long %>% filter(eventname == "baseline_year_1_arm_1") #11270
+#sanity checks
+length(unique(baseline_data$src_subject_id))#11270
+sum(baseline_data$imgincl_t1w_include == 1)#11270
+
+### Diagnosis exclusion code went here originally. ####
+##IN THE FUTURE !!!! FOR LONGITUDINAL ANALYSIS !!!!! 
+#check for diagnoses not reported at baseline (might be relevant for longitudinal analysis)
+# ?? should remove "diagnosis since last time" from the longitudinal analyses?? 
+#in that case we should also remove looking at the in-between questionnaires since "last saw you" implies that (assuming the questionnaries are given at non-imaging visits as well....)
+
+#For twin/non-singleton status, using rel_birth_ID because it is available for all subjects.
+#rel_family_id and rel_birth_id columns in the abcd_ltrack table are only populated for baseline data. Jul 4th 24 (checked)
+baseline_data$twin_statusFAM <- duplicated(baseline_data$rel_birth_id) | duplicated(baseline_data$rel_birth_id, fromLast=TRUE) #1982 TRUE
+anyDuplicated(baseline_data$rel_birth_id)
+sum(na.omit(baseline_data$devhx_5_p == 1))#2115 ... discrepancy :( .... Maybe twin is not included in the study in this case? So should I use this one instead?
+baseline_data$twin_statusP <- baseline_data$devhx_5_p == 1
+#merge Twin Status info
+abcd_long <- merge(abcd_long, baseline_data[,c("src_subject_id", "twin_statusFAM", "twin_statusP")], by = c("src_subject_id"), all = TRUE) 
+#Sanity Check to make sure to subject-event pairs are repeated
+dup_indices <- duplicated(abcd_long[, c("src_subject_id", "eventname")]) | duplicated(abcd_long[, c("src_subject_id", "eventname")], fromLast = TRUE)
+sum(dup_indices) #0 duplicates - what we want.
+
+#Keep one subject per family.
+length(unique(baseline_data$rel_family_id)) #9396
+set.seed(42)
+baseline_famFilt <- baseline_data %>%
+  group_by(rel_family_id) %>%
+  slice_sample(n = 1)
+
+#Only keep one data per family ID
+abcd_long_toSave <- abcd_long %>% filter(src_subject_id %in% baseline_famFilt$src_subject_id)
+
+
+#select useful variables for future analysis
+vars_to_save <- c("src_subject_id", "eventname", "sex_baseline", "gestAge", "PTB", "preterm", "devhx_5_p",
+                  "PCW_at_scan", "interview_age", "year", "month", "site_id_l", "twin_statusFAM", "twin_statusP",
+                  "rel_family_id", "rel_birth_id", 
+                  "imgincl_t2w_include", "imgincl_t1w_include","mri_info_deviceserialnumber", "mri_info_softwareversion",
+                  names(abcd_long)[grep("smri", names(abcd_long))], "totalWM_cb", "totalWM_crb", "totalGM_crb")
+
+abcd_long_toSave <- abcd_long_toSave %>% select(all_of(vars_to_save)) #140 variables
+
+#write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_dxfilter_", Sys.Date(),".csv"))
+write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_NOdxfilter_famfilter", Sys.Date(),".csv"))
+write.csv(abcd_long, file = paste0(out_folder,"abcd5.1_long_full_", Sys.Date(),".csv"))
+
+#convert to wide
+scrn_names <- names(abcd_screener[,2:81]) #screener questions aren't by event, so separate them out
+values_cols <- setdiff(names(abcd_long), 
+                       c("eventname", "src_subject_id", "gestAge", "PTB", "sex_baseline", "twin_statusFAM", "twinstatusP", scrn_names)) #define the names that should not be converted to wide
+abcd_wide <- abcd_long %>% pivot_wider(., names_from = "eventname", values_from = all_of(values_cols))
+
+abcd_wide_toSave <- abcd_long_toSave %>% pivot_wider(., names_from = "eventname", values_from = any_of(values_cols))
+
+#write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_dxfilter_famfilter", Sys.Date(),".csv"))
+write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_NOdxfilter_famfilter", Sys.Date(),".csv"))
+write.csv(abcd_wide, file = paste0(out_folder,"abcd5.1_wide_full_", Sys.Date(),".csv"))
+
+
+#rm(abcd_data, abcd_screener, scrn_names, values_cols, vars_to_save, abcd_long, abcd_wide, abcd_long_toSave, abcd_wide_toSave)
+
+#test <- read.csv(paste0(out_folder,"abcd5.1_long_selectVars_NOdxfilter_famfilter2024-07-04.csv"))
+
+
+
+### Diagnosis Exclusion STUFF
 
 #Medical Diagnoses/Exclusions List
 #deal with diagnoses/exclusions
@@ -170,101 +245,58 @@ abcd_long <- abcd_long %>% filter(imgincl_t1w_include == 1) #22166 obs left. (lo
 #medhx_8a - hospital overnight or longer
 ## with _l at the end, the question changes to "since we last saw you"
 
-baseline_data <- abcd_long %>% filter(eventname == "baseline_year_1_arm_1") #11270
-#sanity checks
-length(unique(baseline_data$src_subject_id))#11270
-sum(baseline_data$imgincl_t1w_include == 1)#11270
 
-#look at diagnoses in baseline data
-#medhx_2c - brain injury **
-#medhx_2e - cancer/leukemia **
-#medhx_2f - cerebral palsy **
-#medhx_2g - diabetes
-#medhx_2h - epilepsy **
-#medhx_2i - hearing problem
-#medhx_2j - kidney disease
-#medhx_2k - lead poisoning **
-#medhx_2l - muscular dystrophy **
-#medhx_2m - multiple sclerosis **
-#medhx_2n - vision problems
-#medhx_2o - heart problems
-#medhx_2p - sickle cell anemia **
-table(baseline_data$medhx_2c)#193 yes
-table(baseline_data$medhx_2e)#23 yes
-table(baseline_data$medhx_2f)#17 yes
-table(baseline_data$medhx_2h)#211 yes
-table(baseline_data$medhx_2j)#211 yes
-table(baseline_data$medhx_2k)#55 yes
-table(baseline_data$medhx_2l)#15 yes
-table(baseline_data$medhx_2m)#13 yes
-table(baseline_data$medhx_2o)#362 yes
-table(baseline_data$medhx_2p)#38 yes
+# #look at diagnoses in baseline data
+# ##Aaron Meeting Jul 2nd, Kevin confirmation, NOT removing any data based on these discussions. Jul 4th 2024.
+# #medhx_2c - brain injury **
+# #medhx_2e - cancer/leukemia **
+# #medhx_2f - cerebral palsy **
+# #medhx_2g - diabetes
+# #medhx_2h - epilepsy **
+# #medhx_2i - hearing problem
+# #medhx_2j - kidney disease
+# #medhx_2k - lead poisoning **
+# #medhx_2l - muscular dystrophy **
+# #medhx_2m - multiple sclerosis **
+# #medhx_2n - vision problems
+# #medhx_2o - heart problems
+# #medhx_2p - sickle cell anemia **
+# table(baseline_data$medhx_2c)#193 yes
+# table(baseline_data$medhx_2e)#23 yes
+# table(baseline_data$medhx_2f)#17 yes
+# table(baseline_data$medhx_2h)#211 yes
+# table(baseline_data$medhx_2j)#211 yes
+# table(baseline_data$medhx_2k)#55 yes
+# table(baseline_data$medhx_2l)#15 yes
+# table(baseline_data$medhx_2m)#13 yes
+# table(baseline_data$medhx_2o)#362 yes
+# table(baseline_data$medhx_2p)#38 yes
+# 
+# table(baseline_data$gestAge)
+# baseline_data_dxfilter <- baseline_data %>% filter(medhx_2c == 0 & medhx_2e == 0 & medhx_2f == 0 & medhx_2h == 0 & medhx_2k == 0 & medhx_2l == 0 & medhx_2m == 0 & medhx_2p == 0)
+# #length baseline after dx filter above - 10808
+# table(baseline_data_dxfilter$gestAge) #still has a good spread of gestational age
+# ##If I remove all of the above then
+# baseline_data_dxfilter_strict <- baseline_data %>% filter(medhx_2c == 0 & medhx_2e == 0 & medhx_2f == 0 & medhx_2h == 0 & medhx_2k == 0 & medhx_2l == 0 & medhx_2m == 0 & medhx_2p == 0 & medhx_2g == 0 & medhx_2i == 0 & medhx_2j == 0 & medhx_2n == 0 & medhx_2o == 0)
+# #length baseline after strict dx filter above - 7615
+# table(baseline_data_dxfilter_strict$gestAge) #still has a good spread of gestational age
+# 
+# #filtering out birth complications AND the original dx filter
+# #complications at birth
+# #devhx_14a3_p - blue at birth **
+# #devhx_14b3_p - slow heartbeat at birth
+# #devhx_14c3_p - did not eat at first
+# #devhx_14d3_p - convulsions **
+# #devhx_14e3_p - jaundice
+# #devhx_14f3_p - required oxygen **
+# #devhx_14g3_p - required blood transfusion **
+# #devhx_14h3_p - Rh incompatability
+# #devhx_5_p - does your child have a twin?
+# baseline_data_dx_birth_filter <- baseline_data %>% filter(medhx_2c == 0 & medhx_2e == 0 & medhx_2f == 0 & medhx_2h == 0 & medhx_2k == 0 & medhx_2l == 0 & medhx_2m == 0 & medhx_2p == 0 & devhx_14a3_p == 0 & devhx_14d3_p == 0 & devhx_14f3_p == 0 & devhx_14g3_p == 0)
+# #length baseline after dx and birth filter above - 9300
+# table(baseline_data_dx_birth_filter$gestAge) #lose a lot of 30-37 week people here.
+# 
+# rm(baseline_data_dxfilter_strict, baseline_data_dx_birth_filter)
 
-table(baseline_data$gestAge)
-baseline_data_dxfilter <- baseline_data %>% filter(medhx_2c == 0 & medhx_2e == 0 & medhx_2f == 0 & medhx_2h == 0 & medhx_2k == 0 & medhx_2l == 0 & medhx_2m == 0 & medhx_2p == 0)
-#length baseline after dx filter above - 10808
-table(baseline_data_dxfilter$gestAge) #still has a good spread of gestational age
-##If I remove all of the above then
-baseline_data_dxfilter_strict <- baseline_data %>% filter(medhx_2c == 0 & medhx_2e == 0 & medhx_2f == 0 & medhx_2h == 0 & medhx_2k == 0 & medhx_2l == 0 & medhx_2m == 0 & medhx_2p == 0 & medhx_2g == 0 & medhx_2i == 0 & medhx_2j == 0 & medhx_2n == 0 & medhx_2o == 0)
-#length baseline after strict dx filter above - 7615
-table(baseline_data_dxfilter_strict$gestAge) #still has a good spread of gestational age
-
-#filtering out birth complications AND the original dx filter
-#complications at birth
-#devhx_14a3_p - blue at birth **
-#devhx_14b3_p - slow heartbeat at birth
-#devhx_14c3_p - did not eat at first
-#devhx_14d3_p - convulsions **
-#devhx_14e3_p - jaundice
-#devhx_14f3_p - required oxygen **
-#devhx_14g3_p - required blood transfusion **
-#devhx_14h3_p - Rh incompatability
-#devhx_5_p - does your child have a twin?
-baseline_data_dx_birth_filter <- baseline_data %>% filter(medhx_2c == 0 & medhx_2e == 0 & medhx_2f == 0 & medhx_2h == 0 & medhx_2k == 0 & medhx_2l == 0 & medhx_2m == 0 & medhx_2p == 0 & devhx_14a3_p == 0 & devhx_14d3_p == 0 & devhx_14f3_p == 0 & devhx_14g3_p == 0)
-#length baseline after dx and birth filter above - 9300
-table(baseline_data_dx_birth_filter$gestAge) #lose a lot of 30-37 week people here.
-
-rm(baseline_data_dxfilter_strict, baseline_data_dx_birth_filter)
-
-#filter out "twins"
-baseline_data_dxfilter_notwin <- baseline_data_dxfilter %>% filter(devhx_5_p == 0) #when filtering twin pregnancies out, we lose a lot of the much earlier term subjects
-# length - 8743
-table(baseline_data_dxfilter_notwin$gestAge)
-
-## I will go ahead with only using the first DX filter for now. I should discuss again. I'll save both data including twins and data without twins. EK 6/29/2024.
+## Jun 29 2024 I will go ahead with only using the first DX filter for now. I should discuss again. I'll save both data including twins and data without twins. EK 6/29/2024.
 # Also note - using self-report dev questionnaire for twin filtering here, not using the group ID variable from the genetics tables.
-
-#remove all rows with subject IDs that had exclusionary diagnoses reported at baseline
-abcd_long_toSave <- abcd_long %>% filter(src_subject_id %in% baseline_data_dxfilter$src_subject_id)
-
-##IN THE FUTURE !!!! FOR LONGITUDINAL ANALYSIS !!!!! 
-#check for diagnoses not reported at baseline (might be relevant for longitudinal analysis)
-# ?? should remove "diagnosis since last time" from the longitudinal analyses?? 
-#in that case we should also remove looking at the in-between questionnaires since "last saw you" implies that (assuming the questionnaries are given at non-imaging visits as well....)
-
-#select useful variables for future analysis
-vars_to_save <- c("src_subject_id", "eventname", "sex_baseline", "gestAge", "PTB", "preterm", "devhx_5_p",
-                  "PCW_at_scan", "interview_age", "year", "month", "site_id_l", "imgincl_t2w_include", "imgincl_t1w_include",
-                  "mri_info_deviceserialnumber", "mri_info_softwareversion",
-                  names(abcd_long)[grep("smri", names(abcd_long))], "totalWM_cb", "totalWM_crb", "totalCTX_crb")
-
-abcd_long_toSave <- abcd_long_toSave %>% select(all_of(vars_to_save)) #136 variables
-
-write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_dxfilter_062924.csv"))
-write.csv(abcd_long, file = paste0(out_folder,"abcd5.1_long_full_062924.csv"))
-
-#convert to wide
-scrn_names <- names(abcd_screener[,2:81]) #screener questions aren't by event, so separate them out
-values_cols <- setdiff(names(abcd_long), 
-                       c("eventname", "src_subject_id", "gestAge", "PTB", "sex_baseline", scrn_names)) #define the names that should not be converted to wide
-abcd_wide <- abcd_long %>% pivot_wider(., names_from = "eventname", values_from = all_of(values_cols))
-
-abcd_wide_toSave <- abcd_long_toSave %>% pivot_wider(., names_from = "eventname", values_from = any_of(values_cols))
-
-write.csv(abcd_wide, file = paste0(out_folder,"abcd5.1_wide_full_062924.csv"))
-write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_dxfilter_062924.csv"))
-
-#rm(abcd_data, abcd_screener, scrn_names, values_cols, vars_to_save, abcd_long, abcd_wide, abcd_long_toSave, abcd_wide_toSave)
-
-#test <- read.csv(paste0(out_folder,"abcd5.1_long_selectVars_dxfilter_062924.csv"))
-#testW <- read.csv(paste0(out_folder,"abcd5.1_wide_full_062924.csv"))
