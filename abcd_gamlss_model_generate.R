@@ -19,7 +19,7 @@ phenotype_set <- c("smri_vol_cdk_total", "totalWM_cb","smri_vol_scs_subcorticalg
 
 #total whole brain cortical volume (desikan), wotal cerebral cortex WM (aseg), all ventricles (aseg), intracranial volume (aseg), whole brain vol (aseg)
 
-n_crit = 20
+n_crit = 200
 
 for (i in 1:length(family_set)) {
   for (j in 1:length(age_formulas)) {
@@ -35,6 +35,28 @@ for (i in 1:length(family_set)) {
       n_crit = n_crit,
       phenotype = ph)
       modelname <- paste("gamlss_model",ph,family,age_term,"cycles",as.character(n_crit),sep = "_")
+      filename <- paste0(out_folder,modelname,".rds")
+      saveRDS(model_specs, file = filename)
+      rm(model_specs, modelname, filename)
+    }
+  }
+}
+
+
+for (i in 1:length(family_set)) {
+  for (j in 1:length(age_formulas)) {
+    for (k in 1:length(phenotype_set)) {
+      family <- family_set[i]
+      age_term <- age_formulas[j]
+      ph <- phenotype_set[k]
+      model_specs <- list(
+        mu.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + twin + random(site)")),
+        sigma.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + twin + random(site)")),
+        tau.formula = as.formula("~1"),
+        fam = family,
+        n_crit = n_crit,
+        phenotype = ph)
+      modelname <- paste("gamlss_model",ph,family,age_term,"cycles",as.character(n_crit), "TwinVar", sep = "_")
       filename <- paste0(out_folder,modelname,".rds")
       saveRDS(model_specs, file = filename)
       rm(model_specs, modelname, filename)
