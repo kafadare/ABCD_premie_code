@@ -11,7 +11,7 @@ family_set <- c("GG", "ST2", "ST3", "ST1", "exGAUS", "ST4", "TF", "PE", "PE2", "
                  "BCCG", "DEL", "GIG", "LNO", "NBF", "NET", "NOF", "RGE", "SI",
                 "SICHEL", "ST5")
  
-age_formulas <- c("ns(age, 3)", "age")
+age_formulas <- c("ns(age, 2)")
 
 #smri_vol_cdk_total is for total cortical GM, this is from the Desikan parcellation. The rest are from Aseg parcellation. 
 phenotype_set <- c("smri_vol_cdk_total", "totalWM_cb","smri_vol_scs_subcorticalgv",
