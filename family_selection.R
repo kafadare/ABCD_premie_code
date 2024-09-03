@@ -10,14 +10,14 @@ library(mgcv) # helps with the gam models
 library(tidygam) # helps with the gam models
 
 #path for RSE method results
-folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_v2/"
+#folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_v2/"
 #load family fit stats
-fit_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_v2/gamlss_family_fits_stats_v2.csv")
+#fit_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_v2/gamlss_family_fits_stats_v2.csv")
 
 #paths for CG method results
-#folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/"
+folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/"
 #load family fit stats
-#fit_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/gamlss_family_fits_stats_CG.csv")
+fit_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/gamlss_family_fits_stats_CG.csv")
 
 fits_output_folder <- paste0(folder,"out_messages/")
 fit_stats$modelFam <- paste(fit_stats$model, fit_stats$family_abbr, sep = "__")
@@ -68,6 +68,15 @@ fits_outputs[which(fits_outputs$modelFam %in% notSave_fits),"text"] #unsaved due
 
 #merge fit_stats with fits_outputs
 fits <- merge(fit_stats, fits_outputs, by = c("model", "family_abbr", "modelFam"))
+
+#filter fits for actually 3 param distributions (after noticing discrepancy between the gamlss 
+#R package documentation and gamlss book -- ST distributions are actually 4 parameter,
+#so do not include them in the plots/selection here)
+fits <- fits %>%
+  filter(family_abbr %in% c("GG", "exGAUS", "TF", "PE", "PE2",
+                                            "BCCG", "GIG", "LNO", "NOF", "RGE"))
+
+
 #separate out fits with twin status as categorical (the most complex model)
 fits_twin <- fits %>% subset(., grepl("twin", model))#63
 #fits without twin as a variable
