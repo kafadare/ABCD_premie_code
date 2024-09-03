@@ -1,30 +1,28 @@
 #Load libraries
 library(dplyr)
 library(magrittr)
-library(table1)
 library(ggplot2)
 library(rlang)
-library(viridis)
 library(gridExtra)
 library(purrr)
 library(cowplot)
 library(gamlss) #to fit model
 library(mgcv) # helps with the gam models
-library(tidymv) # helps with the gam models
-library(lme4)
+library(tidygam) # helps with the gam models
+library(tidyr)
 
-source_folder <- "~/Documents/Grad_School/BGDLab/GestationalAge/"
-out_folder <- "/Users/ekafadar/Documents/Grad_School/BGDLab/ABCD_data/"
-raw_tables_folder <- "~/Documents/Grad_School/BGDLab/ABCD_data/5.1_release/raw_tables/"
+source_folder <- "/mnt/isilon/bgdlab_processing/Eren/GestationalAge/"
+out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/"
+raw_tables_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/raw_tables_5.1/"
 
 #load functions library
-setwd("/Users/ekafadar/Documents/Grad_School/BGDLab/ABCD_premie/")
+setwd("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/")
 source(paste0(source_folder,"R/scripts/data_functions.R"))
-source(paste0(source_folder,"R/scripts/lib_mpr_analysis_EK.r"))
-source(paste0(source_folder,"R/scripts/growth_chart_fcts_EK.r"))
-source(paste0(source_folder,"R/scripts/figures.r"))
-source(paste0(source_folder,"R/scripts/GAmodeling_draft.r"))
-source(paste0(source_folder,"R/scripts/centile_functions_ABCD.r"))
+#source(paste0(source_folder,"R/scripts/lib_mpr_analysis_EK.r"))
+#source(paste0(source_folder,"R/scripts/growth_chart_fcts_EK.r"))
+#source(paste0(source_folder,"R/scripts/figures.r"))
+#source(paste0(source_folder,"R/scripts/GAmodeling_draft.r"))
+#source(paste0(source_folder,"R/scripts/centile_functions_ABCD.r"))
 
 #specify the locations for ABCD 5.1 data files
 #imaging files
@@ -159,7 +157,7 @@ sum(na.omit(baseline_data$devhx_5_p == 1))#2115 ... discrepancy :( .... Maybe tw
 baseline_data$twin_statusP <- baseline_data$devhx_5_p == 1
 #merge Twin Status info
 abcd_long <- merge(abcd_long, baseline_data[,c("src_subject_id", "twin_statusFAM", "twin_statusP")], by = c("src_subject_id"), all = TRUE) 
-#Sanity Check to make sure to subject-event pairs are repeated
+#Sanity Check to make sure to subject-event pairs are not repeated
 dup_indices <- duplicated(abcd_long[, c("src_subject_id", "eventname")]) | duplicated(abcd_long[, c("src_subject_id", "eventname")], fromLast = TRUE)
 sum(dup_indices) #0 duplicates - what we want.
 
@@ -183,7 +181,7 @@ vars_to_save <- c("src_subject_id", "eventname", "sex_baseline", "gestAge", "PTB
 
 abcd_long_toSave <- abcd_long_toSave %>% select(all_of(vars_to_save)) #140 variables
 
-#write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_dxfilter_", Sys.Date(),".csv"))
+write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_dxfilter_", Sys.Date(),".csv"))
 write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_NOdxfilter_famfilter", Sys.Date(),".csv"))
 write.csv(abcd_long, file = paste0(out_folder,"abcd5.1_long_full_", Sys.Date(),".csv"))
 
@@ -195,7 +193,7 @@ abcd_wide <- abcd_long %>% pivot_wider(., names_from = "eventname", values_from 
 
 abcd_wide_toSave <- abcd_long_toSave %>% pivot_wider(., names_from = "eventname", values_from = any_of(values_cols))
 
-#write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_dxfilter_famfilter", Sys.Date(),".csv"))
+write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_dxfilter_famfilter", Sys.Date(),".csv"))
 write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_NOdxfilter_famfilter", Sys.Date(),".csv"))
 write.csv(abcd_wide, file = paste0(out_folder,"abcd5.1_wide_full_", Sys.Date(),".csv"))
 
