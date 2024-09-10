@@ -63,6 +63,21 @@ abcd_long$totalWM_cb <- abcd_long$smri_vol_scs_cbwmatterlh + abcd_long$smri_vol_
 abcd_long$totalWM_crb <- abcd_long$smri_vol_scs_crbwmatterlh + abcd_long$smri_vol_scs_crbwmatterrh
 abcd_long$totalGM_crb <- abcd_long$smri_vol_scs_crbcortexlh + abcd_long$smri_vol_scs_crbcortexrh
 
+#sum all regions bilaterally
+
+rh_ind <- grep("rh$", names(abcd_long))
+lh_ind <- grep("lh$", names(abcd_long))
+
+names <- names(abcd_long)[grep("rh$", names(abcd_long))] %>% gsub("rh$", "", .)
+
+blt_vol <- apply(cbind(rh_ind,lh_ind), 1, function(i) {
+  abcd_long[,i[1]] + abcd_long[,i[2]]
+})
+
+colnames(blt_vol) <- paste0(names, "_total")
+
+abcd_long <- cbind(abcd_long, blt_vol)
+
 #convert all events to "months" baseline = 0
 abcd_long$year <- NA
 abcd_long$year <- gsub("_year_follow_up_y_arm_1$", "", abcd_long$eventname)
@@ -170,7 +185,6 @@ baseline_famFilt <- baseline_data %>%
 
 #Only keep one data per family ID
 abcd_long_toSave <- abcd_long %>% filter(src_subject_id %in% baseline_famFilt$src_subject_id)
-
 
 #select useful variables for future analysis
 vars_to_save <- c("src_subject_id", "eventname", "sex_baseline", "gestAge", "PTB", "preterm", "devhx_5_p",
