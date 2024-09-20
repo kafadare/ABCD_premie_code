@@ -1,75 +1,89 @@
-## This is a script to save gamlss models to loop through, each saved as an .rds file.
+#Get the phenotype set and save it:
+setwd("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/")
 
-#We want to do family selection. We will choose between three 3-parameter families.
-#Box-Cox Cole and Green, Generalized Gamma, Generalized Inverse Gaussian, Exponential Gaussian, Power Exponential
+#Get the set of phenotypes
+vars <- readRDS("ABCD_premie_code/vars_to_save_ABCD.rds")
 
-out_folder <- out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_all_phen/"
+phenotype_set <- grep("^smri(?!.*(mean|sum))", vars, value = TRUE, perl = TRUE)
 
-#Using the generalized gamma distribution family
-family_set <- c("GG")
+out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_allPhen/"
 
-age_formulas <- c("ns(age, 2)")
+age_formulas = c("ns(age, 2)")
 
-#smri_vol_cdk_total is for total cortical GM, this is from the Desikan parcellation. The rest are from Aseg parcellation. 
-#Choose which regional and global phenotypes to run through. left/right separate or not?
-data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_long_selectVars_NOdxfilter_famfilter2024-07-15.csv"
-#rename some of the variables and select baseline scans
-rename_vec <- c(age = "PCW_at_scan", sex = "sex_baseline", site = "site_id_l", twin = "twin_statusFAM")
-#read in the dataframe and set variable types
-df <- read.csv(data_filename) %>% select(-1) %>% rename(., all_of(rename_vec)) %>% subset(eventname == "baseline_year_1_arm_1")#9396 subjects!
+covars = c("sex")
 
-#specify the set of phenotypes to fit models to
-#might want to specify only total bilateral volumes. they include "total". Should check if there are any columns that include smri but don't include total in the var name that I want to include.
-phenotype_set <- c(names(abcd_long)[grep("smri", names(abcd_long))], "totalWM_cb", "totalWM_crb", "totalGM_crb")
+opt_covars = c("nonSingleton")
 
-#read in the dataframe and set variable types
-data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_long_selectVars_NOdxfilter_famfilter2024-07-15.csv"
-df <- read.csv(data_filename) %>% select(-1) %>% rename(., all_of(rename_vec)) %>% subset(eventname == "baseline_year_1_arm_1")#9396 subjects!
-df$sex <- as.factor(df$sex)
-df$site <- as.factor(df$site)
-df$age <- as.numeric(df$age)
+random_fx = c("random(site)")
 
-n_crit = 200
-#models without twin status
-for (i in 1:length(family_set)) {
-  for (j in 1:length(age_formulas)) {
-    for (k in 1:length(phenotype_set)) {
-      family <- family_set[i]
-      age_term <- age_formulas[j]
-      ph <- phenotype_set[k]
-      model_specs <- list(
-        mu.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + random(site)")),
-        sigma.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + random(site)")),
-        tau.formula = as.formula("~1"),
-        fam = family,
-        n_crit = n_crit,
-        phenotype = ph)
-      modelname <- paste("gamlss_model",ph,family,age_term,"cycles",as.character(n_crit),sep = "_")
-      filename <- paste0(out_folder,modelname,".rds")
-      saveRDS(model_specs, file = filename)
-      rm(model_specs, modelname, filename)
+family_set =  c("GG")
+
+generate_gamlss_models(phenotype_set, out_folder, family_set, age_formulas, covars, opt_covars, random_fx)
+
+## This is a function to save gamlss models to loop through, each saved as an .rds file.
+generate_gamlss_models <- function(phenotype_set, out_folder, family_set =  c("GG"), age_formulas = c("ns(age, 2)"), covars = c("sex"), 
+                                   opt_covars = NULL, random_fx = c("random(site)"), n_crit = 200) {
+
+  ph <- phenotype_set[1]
+  age_term <- age_formulas[1]
+  family <- family_set[1]
+  model_string <-paste0(ph, "~1+", paste(age_term, paste(covars, collapse = "+"),random_fx, sep = "+"))
+  formula_mu <-as.formula(model_string)
+  formula_sigma <-as.formula(model_string)
+  
+  #models without optional covars
+  for (i in 1:length(family_set)) {
+    for (j in 1:length(age_formulas)) {
+      for (k in 1:length(phenotype_set)) {
+        family <- family_set[i]
+        age_term <- age_formulas[j]
+        ph <- phenotype_set[k]
+        model_specs <- list(
+          mu.formula = formula_mu,
+          sigma.formula = formula_sigma,
+          tau.formula = as.formula("~1"),
+          fam = family,
+          n_crit = n_crit,
+          phenotype = ph)
+        modelname <- paste("gamlss_model",model_string,"cycles",as.character(n_crit),sep = "_")
+        filename <- paste0(out_folder,modelname,".rds")
+        saveRDS(model_specs, file = filename)
+        rm(model_specs, modelname, filename)
+      }
+    }
+  } 
+
+
+  #loop through generating models with the optional covariates. 
+  #Right now will include all optional covariates, but if we want to include one by one can wrap this in a for loop too. 
+  if (!is.null(opt_covars)){
+    model_string <-paste0(ph, "~1+", paste(age_term, paste(covars, collapse = "+"),
+                                                        paste(opt_covars, collapse = "+"),random_fx, sep = "+"))
+    formula_mu <-as.formula(model_string)
+    formula_sigma <-as.formula(model_string)
+    
+    #models with twin status
+    for (i in 1:length(family_set)) {
+      for (j in 1:length(age_formulas)) {
+        for (k in 1:length(phenotype_set)) {
+          family <- family_set[i]
+          age_term <- age_formulas[j]
+          ph <- phenotype_set[k]
+          model_specs <- list(
+            mu.formula = formula_mu,
+            sigma.formula = formula_sigma,
+            tau.formula = as.formula("~1"),
+            fam = family,
+            n_crit = n_crit,
+            phenotype = ph)
+          modelname <- paste("gamlss_model",model_string,"cycles",as.character(n_crit),sep = "_")
+          filename <- paste0(out_folder,modelname,".rds")
+          saveRDS(model_specs, file = filename)
+          rm(model_specs, modelname, filename)
+        }
+      }
     }
   }
-}
+  
 
-#models with twin status
-for (i in 1:length(family_set)) {
-  for (j in 1:length(age_formulas)) {
-    for (k in 1:length(phenotype_set)) {
-      family <- family_set[i]
-      age_term <- age_formulas[j]
-      ph <- phenotype_set[k]
-      model_specs <- list(
-        mu.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + twin + random(site)")),
-        sigma.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + twin + random(site)")),
-        tau.formula = as.formula("~1"),
-        fam = family,
-        n_crit = n_crit,
-        phenotype = ph)
-      modelname <- paste("gamlss_model",ph,family,age_term,"cycles",as.character(n_crit), "TwinVar", sep = "_")
-      filename <- paste0(out_folder,modelname,".rds")
-      saveRDS(model_specs, file = filename)
-      rm(model_specs, modelname, filename)
-    }
-  }
-}
+}#end of function
