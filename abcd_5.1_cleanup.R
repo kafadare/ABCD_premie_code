@@ -267,9 +267,9 @@ vars_to_save <- c("src_subject_id", "eventname", "sex_baseline", "gestAge", "PTB
                   "imgincl_t2w_include", "imgincl_t1w_include","mri_info_deviceserialnumber", "mri_info_softwareversion",
                   names(abcd_long)[grep("smri", names(abcd_long))], "totalWM_cb", "totalWM_crb", "totalGM_crb")
 
-abcd_long_toSave <- abcd_long_toSave %>% select(all_of(vars_to_save)) #140 variables
+abcd_long_toSave <- abcd_long_toSave %>% select(all_of(vars_to_save)) #242 variables
 
-write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_dxfilter_", Sys.Date(),".csv"))
+#write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_dxfilter_", Sys.Date(),".csv"))
 write.csv(abcd_long_toSave, file = paste0(out_folder,"abcd5.1_long_selectVars_NOdxfilter_famfilter", Sys.Date(),".csv"))
 write.csv(abcd_long, file = paste0(out_folder,"abcd5.1_long_full_", Sys.Date(),".csv"))
 
@@ -281,7 +281,7 @@ abcd_wide <- abcd_long %>% pivot_wider(., names_from = "eventname", values_from 
 
 abcd_wide_toSave <- abcd_long_toSave %>% pivot_wider(., names_from = "eventname", values_from = any_of(values_cols))
 
-write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_dxfilter_famfilter", Sys.Date(),".csv"))
+#write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_dxfilter_famfilter", Sys.Date(),".csv"))
 write.csv(abcd_wide_toSave, file = paste0(out_folder,"abcd5.1_wide_selectVars_NOdxfilter_famfilter", Sys.Date(),".csv"))
 write.csv(abcd_wide, file = paste0(out_folder,"abcd5.1_wide_full_", Sys.Date(),".csv"))
 
