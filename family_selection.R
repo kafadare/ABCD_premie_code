@@ -15,11 +15,11 @@ library(tidygam) # helps with the gam models
 #fit_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_v2/gamlss_family_fits_stats_v2.csv")
 
 #paths for CG method results
-folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/"
+folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/new_fits_singleton/"
 #load family fit stats
-fit_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/gamlss_family_fits_stats_CG.csv")
+fit_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/new_fits_singleton/gamlss_family_fits_stats_CG_new.csv")
 
-fits_output_folder <- paste0(folder,"out_messages/")
+fits_output_folder <- paste0(folder,"out_messages_new/")
 fit_stats$modelFam <- paste(fit_stats$model, fit_stats$family_abbr, sep = "__")
 fit_stats$warning <- NULL
 
@@ -47,7 +47,7 @@ fits_outputs$convergence_warning <- as.integer(lapply(fits_outputs$text, functio
 fits_outputs$convergence_warn_end <- as.integer(lapply(fits_outputs$text, function(x) {sum(grepl(pattern = "Algorithm RS has not yet converged",x))}))#75
 subset(fits_outputs, warning == 1 & convergence_warning == 0 & error == 0)$warning_text
 ###^^body (fun) argument is not a function warning. see below for which families, is there a pattern?
-subset(fits_outputs, warning == 1 & convergence_warning == 0 & error == 0)$modelFam #(all LNO)ssss
+subset(fits_outputs, warning == 1 & convergence_warning == 0 & error == 0)$modelFam #(all LNO)
 
 #Which models stats not saved
 empty_fits <- fits_outputs$modelFam[which(!(fits_outputs$modelFam %in% fit_stats$modelFam))]
