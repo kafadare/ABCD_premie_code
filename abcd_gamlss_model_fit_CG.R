@@ -26,7 +26,7 @@ if (length(args) > 1) {
 }
 
 #rename some of the variables and select baseline scans
-rename_vec <- c(age = "PCW_at_scan", sex = "sex_baseline", site = "site_id_l", twin = "twin_statusFAM")
+rename_vec <- c(age = "PCW_at_scan", sex = "sex_baseline", site = "site_id_l", nonSingleton = "nonSingleton")
 
 #read in the dataframe and set variable types
 df <- read.csv(data_filename) %>% select(-1) %>% rename(., all_of(rename_vec)) %>% subset(eventname == "baseline_year_1_arm_1")#9396 subjects!
@@ -40,13 +40,13 @@ model <- readRDS(models_list[n])
 #model_name <- paste(Reduce(paste, deparse(model$mu.formula)),model$fam, sep = "__")
 print(paste(Reduce(paste, deparse(model$mu.formula)),model$fam, sep = "__"))
 
-twin <- ifelse(sum(grepl("twin", as.character(model$mu.formula))) != 0, "TWIN", NA)
+nonSingleton <- ifelse(sum(grepl("nonSingleton", as.character(model$mu.formula))) != 0, "nonSingleton", NA)
 
 #select variables for gamlss, including phenotype specified by the loaded model
-df <- df %>% select(sex, age, site, twin, model$phenotype)
+df <- df %>% select(sex, age, site, nonSingleton, model$phenotype)
 
 #modelname <- paste("gamlss_FIT",sub(".*/gamlss_model_(.*)", "\\1", model_name), sep = "__")
-modelname <- paste("gamlssFIT", model$fam, model$phenotype, twin, sep = "__")
+modelname <- paste("gamlssFIT", model$fam, model$phenotype, nonSingleton, sep = "__")
 filename <- paste0(out_folder,modelname)
 
 gamlss <- gamlss (formula = model$mu.formula,

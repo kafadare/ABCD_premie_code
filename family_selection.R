@@ -77,30 +77,30 @@ fits <- fits %>%
                                             "BCCG", "GIG", "LNO", "NOF", "RGE"))
 
 
-#separate out fits with twin status as categorical (the most complex model)
-fits_twin <- fits %>% subset(., grepl("twin", model))#63
-#fits without twin as a variable
-fits_notwin <- fits %>% subset(., !(grepl("twin", model)))#63
+#separate out fits with nonSingleton status as categorical (the most complex model)
+fits_nonSingleton <- fits %>% subset(., grepl("nonSingleton", model))#63
+#fits without nonSingleton as a variable
+fits_NOnonSingleton <- fits %>% subset(., !(grepl("nonSingleton", model)))#63
 
 
-### Looking at most complex model, which includes "twin" status.
+### Looking at most complex model, which includes "nonSingleton" status.
 
 #how many models of each family available (5 max)
-table(fits_twin$family_abbr)
-#family_count_full <- as.data.frame(table(fits_twin$family_abbr)) %>% filter(Freq == 5) #12 families (exGAUS threw errors for 2/5)
+table(fits_nonSingleton$family_abbr)
+#family_count_full <- as.data.frame(table(fits_nonSingleton$family_abbr)) %>% filter(Freq == 5) #12 families (exGAUS threw errors for 2/5)
 
 #look at which families don't converge
-table(fits_twin[which(fits_twin$convergence_warning == 1),"family_abbr"])
-table(fits_twin[which(fits_twin$convergence_warn_end == 1),"family_abbr"])
+table(fits_nonSingleton[which(fits_nonSingleton$convergence_warning == 1),"family_abbr"])
+table(fits_nonSingleton[which(fits_nonSingleton$convergence_warn_end == 1),"family_abbr"])
 
 ##Get AIC and BIC plots
 
 #For all families that fit, regardless of convergence warning. Get mean, max, and min.
 #Also show plots by phenotype (currently the df does not have phenotype as a separate value)
-#fits_twin <- fits_twin[which(fits_twin$family_abbr %in% family_count_full$Var1),]#65
+#fits_nonSingleton <- fits_nonSingleton[which(fits_nonSingleton$family_abbr %in% family_count_full$Var1),]#65
 
 #Mean AIC and BIC table isn't actually statistically useful to make decisions with
-# fits_table_all <- fits_twin %>%
+# fits_table_all <- fits_nonSingleton %>%
 #               group_by(family_abbr) %>%
 #               summarise(
 #                 mean_AIC = mean(AIC),
@@ -115,31 +115,31 @@ table(fits_twin[which(fits_twin$convergence_warn_end == 1),"family_abbr"])
 #separate plots for each of the 5 phenotypes in the models. Regardless of convergence warning.
 
 #BIC_WMV <- 
-  fits_twin %>% filter(phenotype == "totalWM_cb") %>% 
+  fits_nonSingleton %>% filter(phenotype == "totalWM_cb") %>% 
   ggplot(., aes(x = log(BIC - min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("WMV, all") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_GMV <- 
-  fits_twin %>% filter(phenotype == "smri_vol_cdk_total") %>% 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_cdk_total") %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("cort GMV, all") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_scGMV <- 
-  fits_twin %>% filter(phenotype == "smri_vol_scs_subcorticalgv") %>% 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_subcorticalgv") %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("subcort GMV, all") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_Vent <- 
-  fits_twin %>% filter(phenotype == "smri_vol_scs_allventricles") %>% 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_allventricles") %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("Ventricles, all") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_wholeB <- 
-  fits_twin %>% filter(phenotype == "smri_vol_scs_wholeb") %>% 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_wholeb") %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("Whole Brain, all") + labs(x = "scaled log BIC", y = "Distribution family")
@@ -148,56 +148,56 @@ table(fits_twin[which(fits_twin$convergence_warn_end == 1),"family_abbr"])
 #Only without end convergence warning
 
 #BIC_WMV <- 
-  fits_twin %>% filter(phenotype == "totalWM_cb"& convergence_warn_end == 0) %>% 
+  fits_nonSingleton %>% filter(phenotype == "totalWM_cb"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("WMV, converged") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_GMV <- 
-  fits_twin %>% filter(phenotype == "smri_vol_cdk_total"& convergence_warn_end == 0) %>% 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_cdk_total"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("cort GMV, converged") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_scGMV <- 
-  fits_twin %>% filter(phenotype == "smri_vol_scs_subcorticalgv"& convergence_warn_end == 0) %>% 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_subcorticalgv"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("subcort GMV, converged") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_Vent <- 
-  fits_twin %>% filter(phenotype == "smri_vol_scs_allventricles"& convergence_warn_end == 0) %>% 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_allventricles"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("Ventricles, converged") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_wholeB <- 
-  fits_twin %>% filter(phenotype == "smri_vol_scs_wholeb"& convergence_warn_end == 0) %>% 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_wholeb"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("Whole Brain, converged") + labs(x = "scaled log BIC", y = "Distribution family")
 
 
-### Looking at model without the twin status term, since this could be a weird term. 
+### Looking at model without the nonSingleton status term, since this could be a weird term. 
 ### The purpose is to investigate if there are significant differences in family selection results when this term is not included.
   
   
 #how many models of each family available (5 max)
-table(fits_notwin$family_abbr)
-#family_count_full <- as.data.frame(table(fits_notwin$family_abbr)) %>% filter(Freq == 5) #12 families (exGAUS threw errors for 2/5)
+table(fits_NOnonSingleton$family_abbr)
+#family_count_full <- as.data.frame(table(fits_NOnonSingleton$family_abbr)) %>% filter(Freq == 5) #12 families (exGAUS threw errors for 2/5)
 
 #look at which families don't converge
-table(fits_notwin[which(fits_notwin$convergence_warning == 1),"family_abbr"])
-table(fits_notwin[which(fits_notwin$convergence_warn_end == 1),"family_abbr"]) #same # of models give convergence warnings.
+table(fits_NOnonSingleton[which(fits_NOnonSingleton$convergence_warning == 1),"family_abbr"])
+table(fits_NOnonSingleton[which(fits_NOnonSingleton$convergence_warn_end == 1),"family_abbr"]) #same # of models give convergence warnings.
 
 ##Get AIC and BIC plots
 
 #For all families that fit, regardless of convergence warning. Get mean, max, and min.
 #Also show plots by phenotype (currently the df does not have phenotype as a separate value)
-#fits_notwin <- fits_notwin[which(fits_notwin$family_abbr %in% family_count_full$Var1),]#65
+#fits_NOnonSingleton <- fits_NOnonSingleton[which(fits_NOnonSingleton$family_abbr %in% family_count_full$Var1),]#65
 
 #Mean AIC and BIC table isn't actually statistically useful to make decisions with
-# fits_table_all <- fits_notwin %>%
+# fits_table_all <- fits_NOnonSingleton %>%
 #               group_by(family_abbr) %>%
 #               summarise(
 #                 mean_AIC = mean(AIC),
@@ -212,31 +212,31 @@ table(fits_notwin[which(fits_notwin$convergence_warn_end == 1),"family_abbr"]) #
 #separate plots for each of the 5 phenotypes in the models. Regardless of convergence warning.
 
 #BIC_WMV <- 
-  fits_notwin %>% filter(phenotype == "totalWM_cb") %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "totalWM_cb") %>% 
   ggplot(., aes(x = log(BIC - min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("WMV, all") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_GMV <- 
-  fits_notwin %>% filter(phenotype == "smri_vol_cdk_total") %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "smri_vol_cdk_total") %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("cort GMV, all") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_scGMV <- 
-  fits_notwin %>% filter(phenotype == "smri_vol_scs_subcorticalgv") %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "smri_vol_scs_subcorticalgv") %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("subcort GMV, all") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_Vent <- 
-  fits_notwin %>% filter(phenotype == "smri_vol_scs_allventricles") %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "smri_vol_scs_allventricles") %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("Ventricles, all") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_wholeB <- 
-  fits_notwin %>% filter(phenotype == "smri_vol_scs_wholeb") %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "smri_vol_scs_wholeb") %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("Whole Brain, all") + labs(x = "scaled log BIC", y = "Distribution family")
@@ -245,58 +245,58 @@ table(fits_notwin[which(fits_notwin$convergence_warn_end == 1),"family_abbr"]) #
 #Only without end convergence warning
 
 #BIC_WMV <- 
-  fits_notwin %>% filter(phenotype == "totalWM_cb"& convergence_warn_end == 0) %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "totalWM_cb"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("WMV, converged") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_GMV <- 
-  fits_notwin %>% filter(phenotype == "smri_vol_cdk_total"& convergence_warn_end == 0) %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "smri_vol_cdk_total"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("cort GMV, converged") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_scGMV <- 
-  fits_notwin %>% filter(phenotype == "smri_vol_scs_subcorticalgv"& convergence_warn_end == 0) %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "smri_vol_scs_subcorticalgv"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("subcort GMV, converged") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_Vent <- 
-  fits_notwin %>% filter(phenotype == "smri_vol_scs_allventricles"& convergence_warn_end == 0) %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "smri_vol_scs_allventricles"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("Ventricles, converged") + labs(x = "scaled log BIC", y = "Distribution family")
 
 #BIC_wholeB <- 
-  fits_notwin %>% filter(phenotype == "smri_vol_scs_wholeb"& convergence_warn_end == 0) %>% 
+  fits_NOnonSingleton %>% filter(phenotype == "smri_vol_scs_wholeb"& convergence_warn_end == 0) %>% 
   ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("Whole Brain, converged") + labs(x = "scaled log BIC", y = "Distribution family")
   
 
   
-### Get a rank of different families for both twin and no twin models.
+### Get a rank of different families for both nonSingleton and no nonSingleton models.
   ## Assign a rank order within each phenotype and take an average of rank orders across phenotypes.
 
-  #For models that have twin status
-fits_twin <- fits_twin %>%
+  #For models that have nonSingleton status
+fits_nonSingleton <- fits_nonSingleton %>%
   group_by(phenotype) %>%
   mutate(rank_BIC = rank(BIC, ties.method = "min"))
 
-mean_rank <- fits_twin %>%
+mean_rank <- fits_nonSingleton %>%
   group_by(family) %>%
   summarize(mean_rank_BIC = mean(rank_BIC)) %>%
   arrange(mean_rank_BIC)
 
 print(mean_rank)
 
-#For models that do NOT include twin status
-fits_notwin <- fits_notwin %>%
+#For models that do NOT include nonSingleton status
+fits_NOnonSingleton <- fits_NOnonSingleton %>%
   group_by(phenotype) %>%
   mutate(rank_BIC = rank(BIC, ties.method = "min"))
 
-mean_rank <- fits_notwin %>%
+mean_rank <- fits_NOnonSingleton %>%
   group_by(family) %>%
   summarize(mean_rank_BIC = mean(rank_BIC)) %>%
   arrange(mean_rank_BIC)
@@ -306,26 +306,26 @@ print(mean_rank)
 
 ## ONLY for models that have converged.
 
-#For models that have twin status
-fits_twin <- fits_twin %>% 
+#For models that have nonSingleton status
+fits_nonSingleton <- fits_nonSingleton %>% 
   filter(convergence_warn_end == 0) %>%
   group_by(phenotype) %>%
   mutate(rank_BIC = rank(BIC, ties.method = "min"))
 
-mean_rank <- fits_twin %>%
+mean_rank <- fits_nonSingleton %>%
   group_by(family) %>%
   summarize(mean_rank_BIC = mean(rank_BIC)) %>%
   arrange(mean_rank_BIC)
 
 print(mean_rank)
 
-#For models that do NOT include twin status
-fits_notwin <- fits_notwin %>%
+#For models that do NOT include nonSingleton status
+fits_NOnonSingleton <- fits_NOnonSingleton %>%
   filter(convergence_warn_end == 0) %>%
   group_by(phenotype) %>%
   mutate(rank_BIC = rank(BIC, ties.method = "min"))
 
-mean_rank <- fits_notwin %>%
+mean_rank <- fits_NOnonSingleton %>%
   group_by(family) %>%
   summarize(mean_rank_BIC = mean(rank_BIC)) %>%
   arrange(mean_rank_BIC)

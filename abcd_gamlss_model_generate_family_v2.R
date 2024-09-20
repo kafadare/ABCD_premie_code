@@ -8,8 +8,8 @@ out_folder <- out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts
 #Only testing 3 parameter models.
 #Remove discrete distributions
 #Up to BNB fits were included in comparison in the braincharts paper. Rest might have not converged and/or response variable constraints.
-family_set <- c("GG", "ST2", "ST3", "ST1", "exGAUS", "ST4", "TF", "PE", "PE2",
-                 "BCCG", "GIG", "LNO", "NOF", "RGE", "ST5")
+family_set <- c("GG", "exGAUS", "TF", "PE", "PE2",
+                 "BCCG", "GIG", "LNO", "NOF", "RGE")
 
  
 age_formulas <- c("ns(age, 2)")
@@ -52,13 +52,13 @@ for (i in 1:length(family_set)) {
       age_term <- age_formulas[j]
       ph <- phenotype_set[k]
       model_specs <- list(
-        mu.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + twin + random(site)")),
-        sigma.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + twin + random(site)")),
+        mu.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + nonSingleton + random(site)")),
+        sigma.formula = as.formula(paste0(ph, " ~ 1 + sex + ",age_term," + nonSingleton + random(site)")),
         tau.formula = as.formula("~1"),
         fam = family,
         n_crit = n_crit,
         phenotype = ph)
-      modelname <- paste("gamlss_model",ph,family,age_term,"cycles",as.character(n_crit), "TwinVar", sep = "_")
+      modelname <- paste("gamlss_model",ph,family,age_term,"cycles",as.character(n_crit), "SingletonVar", sep = "_")
       filename <- paste0(out_folder,modelname,".rds")
       saveRDS(model_specs, file = filename)
       rm(model_specs, modelname, filename)

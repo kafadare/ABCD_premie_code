@@ -73,10 +73,12 @@ names <- names(abcd_long)[grep("rh$", names(abcd_long))] %>% gsub("rh$", "", .)
 blt_vol <- apply(cbind(rh_ind,lh_ind), 1, function(i) {
   abcd_long[,i[1]] + abcd_long[,i[2]]
 })
+blt_mean <- blt_vol/2
 
-colnames(blt_vol) <- paste0(names, "_total")
+colnames(blt_vol) <- paste0(names, "_sum")
+colnames(blt_mean) <- paste0(names, "_mean")
 
-abcd_long <- cbind(abcd_long, blt_vol)
+abcd_long <- cbind(abcd_long, blt_vol, blt_mean)
 
 #convert all events to "months" baseline = 0
 abcd_long$year <- NA
@@ -164,17 +166,79 @@ sum(baseline_data$imgincl_t1w_include == 1)#11270
 # ?? should remove "diagnosis since last time" from the longitudinal analyses?? 
 #in that case we should also remove looking at the in-between questionnaires since "last saw you" implies that (assuming the questionnaries are given at non-imaging visits as well....)
 
+#get twin/triplet/sibling status from genetic data (file Kevin sent) Sep 17 24
+#1 - MZ twin, 2 - DZ twin, 3 - siblings
+genetic <- read.table("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/acspsw03.txt", header = T) %>% 
+  filter(eventname == "baseline_year_1_arm_1")
+
+
 #For twin/non-singleton status, using rel_birth_ID because it is available for all subjects.
 #rel_family_id and rel_birth_id columns in the abcd_ltrack table are only populated for baseline data. Jul 4th 24 (checked)
 baseline_data$twin_statusFAM <- duplicated(baseline_data$rel_birth_id) | duplicated(baseline_data$rel_birth_id, fromLast=TRUE) #1982 TRUE
-anyDuplicated(baseline_data$rel_birth_id)
+#get triplet info from family and birth ID
+table <- table(baseline_data$rel_birth_id)
+triplet_ids <- baseline_data[baseline_data$rel_birth_id %in% names(table[table > 2]), "rel_birth_id"] %>% 
+  unique()
+length(triplet_ids)
+baseline_data$triplet_statusFAM <- baseline_data$rel_birth_id %in% triplet_ids
+#anyDuplicated(baseline_data$rel_birth_id)
+
+#Compare to twin info from dev self-report Questionnaire (not calculated from rel birth id)
+table(baseline_data$devhx_5_p) # 36 rows 999
+#check what the 999 rows are when calculated by birth id
+table(baseline_data[baseline_data$devhx_5_p == "999", "twin_statusFAM"])
+#^35 false, 1 true
+table(baseline_data[baseline_data$devhx_5_p == "999", "triplet_statusFAM"])
+#^35 false, 1 true. So at least one of the 999s is a triplet.
+
+table(baseline_data[baseline_data$devhx_5_p == "1" & baseline_data$twin_statusFAM == FALSE, 
+                    "triplet_statusFAM"]) 
+#160 people total said YES but do not have recorded twin in study
+table(baseline_data[baseline_data$devhx_5_p == "0" & baseline_data$twin_statusFAM == TRUE,
+                    "triplet_statusFAM"]) 
+#^26 people reported not having twins, but twins exist per rel birth ID
+#5 of these people are calculated to be triplets
+
+#extract rel birth Ids of these 26 people and look at their data
+ids <- baseline_data[baseline_data$devhx_5_p == "0" & baseline_data$twin_statusFAM == TRUE,
+                     "rel_birth_id"]
+ids_all <- baseline_data[baseline_data$rel_birth_id %in% ids,]
+table(ids_all$rel_birth_id)
+#three triplets within the discrepant IDs, rest encoded as twins (per rel_birth_id)
+table(ids_all$devhx_5_p)
+#as expected, 26 people (ones used to find these people) are reported as no twin, 1 person is reported as twin, and 1 person is reported as 999 (don't know)
+
+#Compare rel birth id and parent report info to zygosity status from genetic table
+baseline_data <- merge(baseline_data, select(genetic, c("genetic_zygosity_status_1", "subjectkey")),
+                                        by.x = "src_subject_id", by.y = "subjectkey", all.x = T, all.y = F)
+
+table(baseline_data[baseline_data$genetic_zygosity_status_1 == "1", "twin_statusFAM"])#25 FALSE
+table(baseline_data[baseline_data$genetic_zygosity_status_1 == "2", "twin_statusFAM"])#35 FALSE
+table(baseline_data[baseline_data$genetic_zygosity_status_1 == "3", "twin_statusFAM"])#26 TRUE
+table(baseline_data[baseline_data$genetic_zygosity_status_1 == "", "twin_statusFAM"])#537 TRUE ??
+table(baseline_data[baseline_data$twin_statusFAM == TRUE, "genetic_zygosity_status_1"])
+
+
+table(baseline_data[baseline_data$genetic_zygosity_status_1 == "1", "devhx_5_p"])#11 FALSE
+table(baseline_data[baseline_data$genetic_zygosity_status_1 == "2", "devhx_5_p"])#9 FALSE, 1 unknown
+table(baseline_data[baseline_data$genetic_zygosity_status_1 == "3", "devhx_5_p"])#25 TRUE
+table(baseline_data[baseline_data$genetic_zygosity_status_1 == "", "devhx_5_p"])#632 TRUE, 35 unknown
+
+
 sum(na.omit(baseline_data$devhx_5_p == 1))#2115 ... discrepancy :( .... Maybe twin is not included in the study in this case? So should I use this one instead?
 baseline_data$twin_statusP <- baseline_data$devhx_5_p == 1
+
+#Create variable "singleton". Use matching birth ID for non-singleton (1) and also add people who reported "yes" on the devhx question to capture those with twins not in the study.
+#1 means not singleton, 0 means singleton.
+baseline_data$nonSingleton <- rowSums(baseline_data[,which(names(baseline_data) %in% 
+                                                         c("twin_statusFAM", "triple_statusFAM", "twin_statusP"))]) > 0 
+#2142 NON-SINGLETON,, 9125 singleton
 #merge Twin Status info
-abcd_long <- merge(abcd_long, baseline_data[,c("src_subject_id", "twin_statusFAM", "twin_statusP")], by = c("src_subject_id"), all = TRUE) 
+abcd_long <- merge(abcd_long, baseline_data[,c("src_subject_id", "twin_statusFAM", "twin_statusP", "genetic_zygosity_status_1", "nonSingleton")], by = c("src_subject_id"), all = TRUE) 
 #Sanity Check to make sure to subject-event pairs are not repeated
 dup_indices <- duplicated(abcd_long[, c("src_subject_id", "eventname")]) | duplicated(abcd_long[, c("src_subject_id", "eventname")], fromLast = TRUE)
 sum(dup_indices) #0 duplicates - what we want.
+
 
 #Keep one subject per family.
 length(unique(baseline_data$rel_family_id)) #9396
@@ -189,7 +253,7 @@ abcd_long_toSave <- abcd_long %>% filter(src_subject_id %in% baseline_famFilt$sr
 #select useful variables for future analysis
 vars_to_save <- c("src_subject_id", "eventname", "sex_baseline", "gestAge", "PTB", "preterm", "devhx_5_p",
                   "PCW_at_scan", "interview_age", "year", "month", "site_id_l", "twin_statusFAM", "twin_statusP",
-                  "rel_family_id", "rel_birth_id", 
+                  "rel_family_id", "rel_birth_id", "genetic_zygosity_status_1", "nonSingleton",
                   "imgincl_t2w_include", "imgincl_t1w_include","mri_info_deviceserialnumber", "mri_info_softwareversion",
                   names(abcd_long)[grep("smri", names(abcd_long))], "totalWM_cb", "totalWM_crb", "totalGM_crb")
 
