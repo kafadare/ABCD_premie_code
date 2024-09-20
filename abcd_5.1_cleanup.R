@@ -184,18 +184,18 @@ baseline_data$triplet_statusFAM <- baseline_data$rel_birth_id %in% triplet_ids
 #anyDuplicated(baseline_data$rel_birth_id)
 
 #Compare to twin info from dev self-report Questionnaire (not calculated from rel birth id)
-table(baseline_data$devhx_5_p) # 36 rows 999
+#table(baseline_data$devhx_5_p) # 36 rows 999
 #check what the 999 rows are when calculated by birth id
-table(baseline_data[baseline_data$devhx_5_p == "999", "twin_statusFAM"])
+#table(baseline_data[baseline_data$devhx_5_p == "999", "twin_statusFAM"])
 #^35 false, 1 true
-table(baseline_data[baseline_data$devhx_5_p == "999", "triplet_statusFAM"])
+#table(baseline_data[baseline_data$devhx_5_p == "999", "triplet_statusFAM"])
 #^35 false, 1 true. So at least one of the 999s is a triplet.
 
-table(baseline_data[baseline_data$devhx_5_p == "1" & baseline_data$twin_statusFAM == FALSE, 
-                    "triplet_statusFAM"]) 
+#table(baseline_data[baseline_data$devhx_5_p == "1" & baseline_data$twin_statusFAM == FALSE, 
+                    # "triplet_statusFAM"]) 
 #160 people total said YES but do not have recorded twin in study
-table(baseline_data[baseline_data$devhx_5_p == "0" & baseline_data$twin_statusFAM == TRUE,
-                    "triplet_statusFAM"]) 
+#table(baseline_data[baseline_data$devhx_5_p == "0" & baseline_data$twin_statusFAM == TRUE,
+                    # "triplet_statusFAM"]) 
 #^26 people reported not having twins, but twins exist per rel birth ID
 #5 of these people are calculated to be triplets
 
@@ -203,26 +203,26 @@ table(baseline_data[baseline_data$devhx_5_p == "0" & baseline_data$twin_statusFA
 ids <- baseline_data[baseline_data$devhx_5_p == "0" & baseline_data$twin_statusFAM == TRUE,
                      "rel_birth_id"]
 ids_all <- baseline_data[baseline_data$rel_birth_id %in% ids,]
-table(ids_all$rel_birth_id)
+#table(ids_all$rel_birth_id)
 #three triplets within the discrepant IDs, rest encoded as twins (per rel_birth_id)
-table(ids_all$devhx_5_p)
+#table(ids_all$devhx_5_p)
 #as expected, 26 people (ones used to find these people) are reported as no twin, 1 person is reported as twin, and 1 person is reported as 999 (don't know)
 
 #Compare rel birth id and parent report info to zygosity status from genetic table
 baseline_data <- merge(baseline_data, select(genetic, c("genetic_zygosity_status_1", "subjectkey")),
                                         by.x = "src_subject_id", by.y = "subjectkey", all.x = T, all.y = F)
 
-table(baseline_data[baseline_data$genetic_zygosity_status_1 == "1", "twin_statusFAM"])#25 FALSE
-table(baseline_data[baseline_data$genetic_zygosity_status_1 == "2", "twin_statusFAM"])#35 FALSE
-table(baseline_data[baseline_data$genetic_zygosity_status_1 == "3", "twin_statusFAM"])#26 TRUE
-table(baseline_data[baseline_data$genetic_zygosity_status_1 == "", "twin_statusFAM"])#537 TRUE ??
-table(baseline_data[baseline_data$twin_statusFAM == TRUE, "genetic_zygosity_status_1"])
+#table(baseline_data[baseline_data$genetic_zygosity_status_1 == "1", "twin_statusFAM"])#25 FALSE
+#table(baseline_data[baseline_data$genetic_zygosity_status_1 == "2", "twin_statusFAM"])#35 FALSE
+#table(baseline_data[baseline_data$genetic_zygosity_status_1 == "3", "twin_statusFAM"])#26 TRUE
+#table(baseline_data[baseline_data$genetic_zygosity_status_1 == "", "twin_statusFAM"])#537 TRUE ??
+#table(baseline_data[baseline_data$twin_statusFAM == TRUE, "genetic_zygosity_status_1"])
 
 
-table(baseline_data[baseline_data$genetic_zygosity_status_1 == "1", "devhx_5_p"])#11 FALSE
-table(baseline_data[baseline_data$genetic_zygosity_status_1 == "2", "devhx_5_p"])#9 FALSE, 1 unknown
-table(baseline_data[baseline_data$genetic_zygosity_status_1 == "3", "devhx_5_p"])#25 TRUE
-table(baseline_data[baseline_data$genetic_zygosity_status_1 == "", "devhx_5_p"])#632 TRUE, 35 unknown
+#table(baseline_data[baseline_data$genetic_zygosity_status_1 == "1", "devhx_5_p"])#11 FALSE
+#table(baseline_data[baseline_data$genetic_zygosity_status_1 == "2", "devhx_5_p"])#9 FALSE, 1 unknown
+#table(baseline_data[baseline_data$genetic_zygosity_status_1 == "3", "devhx_5_p"])#25 TRUE
+#table(baseline_data[baseline_data$genetic_zygosity_status_1 == "", "devhx_5_p"])#632 TRUE, 35 unknown
 
 
 sum(na.omit(baseline_data$devhx_5_p == 1))#2115 ... discrepancy :( .... Maybe twin is not included in the study in this case? So should I use this one instead?
@@ -231,29 +231,39 @@ baseline_data$twin_statusP <- baseline_data$devhx_5_p == 1
 #Create variable "singleton". Use matching birth ID for non-singleton (1) and also add people who reported "yes" on the devhx question to capture those with twins not in the study.
 #1 means not singleton, 0 means singleton.
 baseline_data$nonSingleton <- rowSums(baseline_data[,which(names(baseline_data) %in% 
-                                                         c("twin_statusFAM", "triple_statusFAM", "twin_statusP"))]) > 0 
+                                                       c("twin_statusFAM", "triplet_statusFAM", "twin_statusP"))]) > 0 
 #2142 NON-SINGLETON,, 9125 singleton
-#merge Twin Status info
-abcd_long <- merge(abcd_long, baseline_data[,c("src_subject_id", "twin_statusFAM", "twin_statusP", "genetic_zygosity_status_1", "nonSingleton")], by = c("src_subject_id"), all = TRUE) 
-#Sanity Check to make sure to subject-event pairs are not repeated
-dup_indices <- duplicated(abcd_long[, c("src_subject_id", "eventname")]) | duplicated(abcd_long[, c("src_subject_id", "eventname")], fromLast = TRUE)
-sum(dup_indices) #0 duplicates - what we want.
 
-
-#Keep one subject per family.
+#Create variable to indicate whether a subject has someone with a shared family id
 length(unique(baseline_data$rel_family_id)) #9396
+table <- table(baseline_data$rel_family_id)
+related <- baseline_data[baseline_data$rel_family_id %in% names(table[table > 1]), "rel_family_id"] %>% 
+  unique()
+baseline_data$related_status<- baseline_data$rel_family_id %in% related
+#Keep one subject per family.
 set.seed(42)
 baseline_famFilt <- baseline_data %>%
   group_by(rel_family_id) %>%
   slice_sample(n = 1)
+
+#merge Twin Status info
+abcd_long <- merge(abcd_long, baseline_data[,c("src_subject_id", "twin_statusFAM", "twin_statusP",
+                                               "triplet_statusFAM", "genetic_zygosity_status_1", 
+                                               "nonSingleton", "related_status")], 
+                                              by = c("src_subject_id"), all = TRUE) 
+#Sanity Check to make sure to subject-event pairs are not repeated
+dup_indices <- duplicated(abcd_long[, c("src_subject_id", "eventname")]) | duplicated(abcd_long[, c("src_subject_id", "eventname")], fromLast = TRUE)
+sum(dup_indices) #0 duplicates - what we want.
+
 
 #Only keep one data per family ID
 abcd_long_toSave <- abcd_long %>% filter(src_subject_id %in% baseline_famFilt$src_subject_id)
 
 #select useful variables for future analysis
 vars_to_save <- c("src_subject_id", "eventname", "sex_baseline", "gestAge", "PTB", "preterm", "devhx_5_p",
-                  "PCW_at_scan", "interview_age", "year", "month", "site_id_l", "twin_statusFAM", "twin_statusP",
-                  "rel_family_id", "rel_birth_id", "genetic_zygosity_status_1", "nonSingleton",
+                  "PCW_at_scan", "interview_age", "year", "month", "site_id_l", "twin_statusFAM", 
+                  "twin_statusP","triplet_statusFAM","rel_family_id", "rel_birth_id", 
+                  "genetic_zygosity_status_1", "nonSingleton", "related_status",
                   "imgincl_t2w_include", "imgincl_t1w_include","mri_info_deviceserialnumber", "mri_info_softwareversion",
                   names(abcd_long)[grep("smri", names(abcd_long))], "totalWM_cb", "totalWM_crb", "totalGM_crb")
 
