@@ -19,10 +19,11 @@ if (length(args) > 1) {
   out_folder <- args[4]
   output_file <- args[5]
 }else{
-  models_folder <- "~/Documents/Grad_School/BGDLab/ABCD_data/gamlss_models/"
-  data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_long_selectVars_NOdxfilter_famfilter2024-07-15.csv"
-  out_folder <- "~/Documents/Grad_School/BGDLab/ABCD_data/gamlss_fits_CG/"
-  output_file <- "~/Documents/Grad_School/BGDLab/ABCD_data/gamlss_fits/gamlss_fits_stats_CG.csv"
+  n = 1
+  models_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_family_v2/"
+  data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_long_selectVars_NOdxfilter_famfilter2024-09-20.csv"
+  out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/new_fits_singleton/"
+  output_file <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/new_fits_singleton/gamlss_fits_stats_CG_new.csv"
 }
 
 #rename some of the variables and select baseline scans

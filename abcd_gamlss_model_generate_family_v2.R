@@ -58,7 +58,7 @@ for (i in 1:length(family_set)) {
         fam = family,
         n_crit = n_crit,
         phenotype = ph)
-      modelname <- paste("gamlss_model",ph,family,age_term,"cycles",as.character(n_crit), "SingletonVar", sep = "_")
+      modelname <- paste("gamlss_model",ph,family,age_term,"cycles",as.character(n_crit), "nonSingletonVar", sep = "_")
       filename <- paste0(out_folder,modelname,".rds")
       saveRDS(model_specs, file = filename)
       rm(model_specs, modelname, filename)
