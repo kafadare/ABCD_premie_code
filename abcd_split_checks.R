@@ -5,8 +5,21 @@ library(ggplot2)
 library(tidyr)
 setwd("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/")
 source("ABCD_premie_code/data_functions.R")
-abcd_processed <- read.csv("CSV/process_tables_5.1/abcd5.1_long_selectVars_NOdxfilter_famfilter2024-09-12.csv") %>%
+out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/"
+
+
+abcd_processed <- read.csv("CSV/process_tables_5.1/abcd5.1_long_full_2024-09-20.csv") %>%
   filter(eventname == "baseline_year_1_arm_1")
+
+#select useful variables for future analysis
+vars_to_save <- c("src_subject_id", "eventname", "sex_baseline", "gestAge", "PTB", "preterm", "devhx_5_p",
+                  "PCW_at_scan", "interview_age", "year", "month", "site_id_l", "twin_statusFAM", 
+                  "twin_statusP","triplet_statusFAM","rel_family_id", "rel_birth_id", 
+                  "genetic_zygosity_status_1", "nonSingleton", "related_status",
+                  "imgincl_t2w_include", "imgincl_t1w_include","mri_info_deviceserialnumber", "mri_info_softwareversion",
+                  names(abcd_processed)[grep("smri", names(abcd_processed))], "totalWM_cb", "totalWM_crb", "totalGM_crb")
+saveRDS(vars_to_save, file = "ABCD_premie_code/vars_to_save_ABCD.rds")
+
 abcd_split <- read.table('CSV/participants.tsv', sep = "\t", header = T) %>% 
   mutate(participant_id = gsub("sub-", "", .$participant_id)) %>% 
   mutate(participant_id = gsub("NDAR", "NDAR_", .$participant_id)) %>%
@@ -37,28 +50,62 @@ abcd_all <- merge(abcd_processed, abcd_split[,names(abcd_split) %in% c("src_subj
                                             "anesthesia_exposure", "scanner_model",
                                             "scanner_software", "participant_education", "site_id_l")], 
                                              by = c("src_subject_id", "site_id_l"), 
-                                             all.x = F, all.y = F)
+                                             all.x = T, all.y = F)
 
 #Check if twin encoding matches the encoding I have
-# SURPRISE - it doesn't exactly ... now need to weed this out
-table(abcd_all[which(abcd_all$twin_statusFAM == TRUE), "siblings_twins"])
-table(abcd_all[which(abcd_all$twin_statusP == TRUE), "siblings_twins"])
+# 0 -single, 1 - siblings, 2 - twins, 3 - triplets
+# SURPRISE - it doesn't match. I will go ahead with the nonSingleton encoding I have decided on until further notice.
+table(abcd_all[which(abcd_all$twin_statusFAM == TRUE), "siblings_twins"])#11 singles and 39 siblings?
+table(abcd_all[which(abcd_all$triplet_statusFAM == TRUE), "siblings_twins"])#all encoded as triplets
+table(abcd_all[which(abcd_all$twin_statusP == TRUE), "siblings_twins"])#75 singles and 44 siblings
+table(abcd_all[which(abcd_all$siblings_twins > 1), "genetic_zygosity_status_1"])#12 siblings 
 
-#abcd_all_split1 <- abcd_all[which(abcd_all$matched_group == 1),]
-#abcd_all_split2 <- abcd_all[which(abcd_all$matched_group == 2),]
+abcd_all_test <- abcd_all[which(abcd_all$matched_group == 1),]
+abcd_all_train <- abcd_all[which(abcd_all$matched_group == 2),]
+
+#check how many repeated family IDs in each split group
+paste0("Test, # of unique family IDS:",length(unique(abcd_all_test$rel_family_id)),
+       "  unique # of participants:",length(unique(abcd_all_test$src_subject_id)),
+       "  # of rows in the dataframe:",dim(abcd_all_test)[1])
+paste0("Train, # of unique family IDS:",length(unique(abcd_all_train$rel_family_id)),
+       "  unique # of participants:",length(unique(abcd_all_train$src_subject_id)),
+       "  # of rows in the dataframe:",dim(abcd_all_train)[1])
+#Repeated family ids in each group. Keep one per family in each group, then cross-check the groups for repeated family IDs in between.
+#Keep one subject per family WITHIN each split.
+set.seed(42)
+abcd_all_train_famFilt <- abcd_all_train %>%
+  group_by(rel_family_id) %>%
+  slice_sample(n = 1)
+abcd_all_test_famFilt <- abcd_all_test %>%
+  group_by(rel_family_id) %>%
+  slice_sample(n = 1)
+
+#look for people who share family IDs between train and test groups.
+sum(abcd_all_train_famFilt$rel_family_id %in% abcd_all_test_famFilt$rel_family_id) #65
+sum(abcd_all_test_famFilt$rel_family_id %in% abcd_all_train_famFilt$rel_family_id) #65
+#65 participants share family IDs between groups.
+
 
 #Check GA/PM distribution between the splits.
 #distribution seems similar
-hist(abcd_all[which(abcd_all$matched_group == 1),"gestAge"])
-hist(abcd_all[which(abcd_all$matched_group == 2),"gestAge"])
+hist(abcd_all_train_famFilt$gestAge)
+hist(abcd_all_test_famFilt$gestAge)
 #look more closely to GA < 40, also seems similarly distributed
-hist(abcd_all[which(abcd_all$matched_group == 1 & abcd_all$gestAge < 40),"gestAge"])
-hist(abcd_all[which(abcd_all$matched_group == 2 & abcd_all$gestAge < 40),"gestAge"])
-
+hist(abcd_all_train_famFilt[abcd_all_train_famFilt$gestAge < 40,]$gestAge)
+hist(abcd_all_test_famFilt[abcd_all_test_famFilt$gestAge < 40,]$gestAge)
+#Tests below not significant, suggests similar distribution of gestAge between train and test groups.
+ks.test(abcd_all_train_famFilt$gestAge, abcd_all_test_famFilt$gestAge)
+t.test(abcd_all_train_famFilt$gestAge, abcd_all_test_famFilt$gestAge)
 #numbers are similar for PTB vs Not
-table(abcd_all[which(abcd_all$matched_group == 1),"PTB"])
-table(abcd_all[which(abcd_all$matched_group == 2),"PTB"])
+table(abcd_all_train_famFilt$PTB)
+table(abcd_all_test_famFilt$PTB)
 
-abcd_all_twoSplit <- abcd_all[which(abcd_all$matched_group %in% c("1", "2")),]
+abcd_matched_train <- abcd_all_train_famFilt %>% select(all_of(vars_to_save)) #242 variables
+abcd_matched_test <- abcd_all_test_famFilt %>% select(all_of(vars_to_save)) #242 variables
 
-t.test(gestAge ~ matched_group, abcd_all_twoSplit)#not different
+write.csv(abcd_matched_train, file = paste0(out_folder,
+                                            "abcd_baseline_matchedTrain_selectVars_famfilter", 
+                                            Sys.Date(),".csv"))
+write.csv(abcd_matched_test, file = paste0(out_folder,
+                                            "abcd_baseline_matchedTest_selectVars_famfilter", 
+                                            Sys.Date(),".csv"))
