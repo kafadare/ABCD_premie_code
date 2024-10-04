@@ -228,11 +228,14 @@ baseline_data <- merge(baseline_data, select(genetic, c("genetic_zygosity_status
 sum(na.omit(baseline_data$devhx_5_p == 1))#2115 ... discrepancy :( .... Maybe twin is not included in the study in this case? So should I use this one instead?
 baseline_data$twin_statusP <- baseline_data$devhx_5_p == 1
 
-#Create variable "singleton". Use matching birth ID for non-singleton (1) and also add people who reported "yes" on the devhx question to capture those with twins not in the study.
+##Create variable "nonsingleton". Use matching birth ID for non-singleton (1) and also add people who reported "yes" on the devhx question to capture those with twins not in the study.
+#Remove people who have NA in devhx_5_p, and are 0 for the matching birth ID columns
+baseline_data <- baseline_data %>% subset(!(is.na(twin_statusP) & twin_statusFAM == FALSE))
 #1 means not singleton, 0 means singleton.
-baseline_data$nonSingleton <- rowSums(baseline_data[,which(names(baseline_data) %in% 
-                                                       c("twin_statusFAM", "triplet_statusFAM", "twin_statusP"))]) > 0 
+baseline_data$nonSingleton <- as.integer(rowSums(baseline_data[,which(names(baseline_data) %in% 
+                                      c("twin_statusFAM", "triplet_statusFAM", "twin_statusP"))]) > 0)
 #2142 NON-SINGLETON,, 9125 singleton
+sum(is.na(baseline_data$nonSingleton))#0, good.
 
 #Create variable to indicate whether a subject has someone with a shared family id
 length(unique(baseline_data$rel_family_id)) #9396
