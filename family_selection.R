@@ -12,16 +12,16 @@ library(tidygam) # helps with the gam models
 #path for RSE method results
 #folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_v2/"
 #load family fit stats
-#fit_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_v2/gamlss_family_fits_stats_v2.csv")
+#fits_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_v2/gamlss_family_fits_stats_v2.csv")
 
 #paths for CG method results
 folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/new_fits_singleton/"
 #load family fit stats
-fit_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/new_fits_singleton/gamlss_family_fits_stats_CG_new.csv")
+fits_stats <- read.csv("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/new_fits_singleton/gamlss_family_fits_stats_CG_new.csv")
 
 fits_output_folder <- paste0(folder,"out_messages_new/")
-fit_stats$modelFam <- paste(fit_stats$model, fit_stats$family_abbr, sep = "__")
-fit_stats$warning <- NULL
+fits_stats$modelFam <- paste(fits_stats$model, fits_stats$family_abbr, sep = "__")
+fits_stats$warning <- NULL
 
 #get list of models and choose the one specified
 output_list <-  list.files(fits_output_folder, pattern = "\\.txt$", full.names = TRUE)
@@ -50,7 +50,7 @@ subset(fits_outputs, warning == 1 & convergence_warning == 0 & error == 0)$warni
 subset(fits_outputs, warning == 1 & convergence_warning == 0 & error == 0)$modelFam #(all LNO)
 
 #Which models stats not saved
-empty_fits <- fits_outputs$modelFam[which(!(fits_outputs$modelFam %in% fit_stats$modelFam))]
+empty_fits <- fits_outputs$modelFam[which(!(fits_outputs$modelFam %in% fits_stats$modelFam))]
 #which of those have error output
 fits_outputs$warning_text <- as.character(lapply(fits_outputs$warning_text, unlist))
 fits_outputs$error_text <- as.character(lapply(fits_outputs$error_text, unlist))
@@ -66,8 +66,8 @@ fits_outputs[which(fits_outputs$modelFam %in% notSave_fits),"text"] #unsaved due
 ##Save output file that has been constructed with errors and warnings
 #write.csv(fits_outputs, paste0(folder,"fits_outputs.csv"), row.names = F)
 
-#merge fit_stats with fits_outputs
-fits <- merge(fit_stats, fits_outputs, by = c("model", "family_abbr", "modelFam"))
+#merge fits_stats with fits_outputs
+fits <- merge(fits_stats, fits_outputs, by = c("model", "family_abbr", "modelFam"))
 
 #filter fits for actually 3 param distributions (after noticing discrepancy between the gamlss 
 #R package documentation and gamlss book -- ST distributions are actually 4 parameter,
