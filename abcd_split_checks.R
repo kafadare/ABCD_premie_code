@@ -8,7 +8,7 @@ source("ABCD_premie_code/data_functions.R")
 out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/"
 
 
-abcd_processed <- read.csv("CSV/process_tables_5.1/abcd5.1_long_full_2024-09-20.csv") %>%
+abcd_processed <- read.csv("CSV/process_tables_5.1/abcd5.1_long_full_2024-10-04.csv") %>%
   filter(eventname == "baseline_year_1_arm_1")
 
 #select useful variables for future analysis
@@ -71,20 +71,18 @@ paste0("Train, # of unique family IDS:",length(unique(abcd_all_train$rel_family_
        "  unique # of participants:",length(unique(abcd_all_train$src_subject_id)),
        "  # of rows in the dataframe:",dim(abcd_all_train)[1])
 #Repeated family ids in each group. Keep one per family in each group, then cross-check the groups for repeated family IDs in between.
-#Keep one subject per family WITHIN each split.
+#Keep one subject per family in the TRAIN set, and also ensure no shared family IDs between TRAIN and TEST
+#Remove matching ones from TEST. (check numbers between TRAIN and TEST sets to ensure that the N is similar.)
 set.seed(42)
 abcd_all_train_famFilt <- abcd_all_train %>%
   group_by(rel_family_id) %>%
-  slice_sample(n = 1)
-abcd_all_test_famFilt <- abcd_all_test %>%
-  group_by(rel_family_id) %>%
-  slice_sample(n = 1)
-
+  slice_sample(n = 1) #got rid of 901 people in the train set
 #look for people who share family IDs between train and test groups.
-sum(abcd_all_train_famFilt$rel_family_id %in% abcd_all_test_famFilt$rel_family_id) #65
-sum(abcd_all_test_famFilt$rel_family_id %in% abcd_all_train_famFilt$rel_family_id) #65
-#65 participants share family IDs between groups.
-
+abcd_all_test_famFilt <- abcd_all_test %>%
+  filter(!(rel_family_id %in% abcd_all_train_famFilt$rel_family_id))#got rid of 73 people in the test set
+sum(duplicated(abcd_all_test_famFilt$rel_family_id))#886 duplicates in the test set
+#sanity check
+sum(abcd_all_test_famFilt$rel_family_id %in% abcd_all_train_famFilt$rel_family_id) #0
 
 #Check GA/PM distribution between the splits.
 #distribution seems similar
@@ -93,9 +91,6 @@ hist(abcd_all_test_famFilt$gestAge)
 #look more closely to GA < 40, also seems similarly distributed
 hist(abcd_all_train_famFilt[abcd_all_train_famFilt$gestAge < 40,]$gestAge)
 hist(abcd_all_test_famFilt[abcd_all_test_famFilt$gestAge < 40,]$gestAge)
-#Tests below not significant, suggests similar distribution of gestAge between train and test groups.
-ks.test(abcd_all_train_famFilt$gestAge, abcd_all_test_famFilt$gestAge)
-t.test(abcd_all_train_famFilt$gestAge, abcd_all_test_famFilt$gestAge)
 #numbers are similar for PTB vs Not
 table(abcd_all_train_famFilt$PTB)
 table(abcd_all_test_famFilt$PTB)
