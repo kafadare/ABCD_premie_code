@@ -1,0 +1,83 @@
+---
+title: "gamlss_visualization"
+author: "Eren Kafadar"
+date: "2024-10-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#Load libraries
+library(dplyr)
+library(magrittr)
+library(readr)
+library(stringr)
+library(ggplot2)
+library(gamlss) #to fit model
+require(gamlss.ggplots)
+library(tidyr)
+library(gamlssTools) #Margaret's package
+```
+
+#Setup
+##Define paths for data and fitted models
+```{r}
+#paths for CG method results
+folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_allPhen"
+train_data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTrain_selectVars_famfilter2024-10-04.csv"
+test_data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTest_selectVars_famfilter2024-10-04.csv"
+```
+## Load data frames and clean them up
+```{r}
+#define the distribution family and phenotype and whether nonSingleton variable is there to define file name.
+#rename some of the variables and select baseline scans
+rename_vec <- c(age = "PCW_at_scan", sex = "sex_baseline", site = "site_id_l", nonSingleton = "nonSingleton")
+
+#read in the dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+train_df <- read.csv(train_data_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+train_df$sex <- as.factor(train_df$sex)
+train_df$site <- as.factor(train_df$site)
+train_df$age <- as.numeric(train_df$age)
+
+test_df <- read.csv(test_data_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+test_df$sex <- as.factor(test_df$sex)
+test_df$site <- as.factor(test_df$site)
+test_df$age <- as.numeric(test_df$age)
+```
+
+
+##Load fitted model(s) and select the correct variables from the dataframes
+reading in models that fit GG and have nonSingleton variable only
+```{r}
+#fitted_paths <- list.files(path = folder, pattern = "\\.rds$", full.names = TRUE)
+fitted_paths <- list.files(path = folder, pattern = "GG.*\\.rds$", full.names = TRUE)
+all_models <- lapply(fitted_paths, readRDS)
+### for now define model as the first one in the list ### later this might be input if I make it into a loop or function.
+model <- all_models[[2]]
+###
+print(paste(Reduce(paste, deparse(model$mu.formula)),model$fam, sep = "__"))
+nonSingleton <- ifelse(sum(grepl("nonSingleton", as.character(model$mu.formula))) != 0, "nonSingleton", NA)
+phenotype <- model$mu.formula[[2]]
+#select variables for gamlss, including phenotype specified by the loaded model
+train <- train_df %>% select(sex, age, site, nonSingleton, phenotype)
+test <- test_df %>% select(sex, age, site, nonSingleton, phenotype)
+```
+
+#Plots
+## Centile plots
+I can't really make anything from the gamlss.ggplots package work :(
+data frame needs to beidentical to the one that was used to fit the model? doesn't seem to work with anything different ..... 
+```{r}
+make_centile_fan(model, train, "age", "sex")
+#pe_param(model, "age") ##DOES NOT WORK!
+#fitted_terms(model, parameter = "mu") ##ALSO DOES NOT WORK!
+```
+
+##Diagnostic plots
+```{r}
+plot(model)
+model_GAIC(all_models[[1]], all_models[[2]])
+cohens_f2_local(all_models[[2]], all_models[[1]])
+```
