@@ -32,7 +32,7 @@ saveRDS(train_ind, file = filename)
 
 
 ####Code for loading the split and removing related individuals within each group (train and test)
-## Should I make this a function?
+## Fix this code to reflect removing within train, between train and test, but not within test subsets !!!
 
 #select useful variables for future analysis
 split_no = 1 #When using this block of code, get this as input from the function (batch job id for example)
