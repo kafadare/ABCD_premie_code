@@ -1,0 +1,181 @@
+---
+title: "split half model fits"
+author: "Eren Kafadar"
+date: "2024-11-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#Load libraries
+library(dplyr)
+library(magrittr)
+library(readr)
+library(stringr)
+library(ggplot2)
+library(gamlss) #to fit model
+require(gamlss.ggplots)
+library(tidyr)
+library(gamlssTools) #Margaret's package
+library(gridExtra)
+```
+
+#SETUP
+
+##Define files
+
+```{r cars}
+#file paths
+splitOne_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_GG_global_ONE/"
+splitTwo_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_GG_global_TWO/"
+sOne_fits_stats_filename <- paste0(splitOne_folder, "gamlss_fits_stats_all.csv")
+sTwo_fits_stats_filename <- paste0(splitTwo_folder, "gamlss_fits_stats_all.csv")
+splitOne_data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTrain_selectVars_famfilter2024-10-04.csv"
+splitTwo_data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTrain2_selectVars_famfilter2024-10-08.csv"
+splitOne_test_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTest2_selectVars_famfilter2024-10-08.csv"
+splitTwo_test_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTest_selectVars_famfilter2024-10-04.csv"
+phenotype_set <- readRDS("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/phenotype_set.rds")
+
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/inspect_model_fits.R")
+```
+## Load data frames and clean them up
+```{r}
+#define the distribution family and phenotype and whether nonSingleton variable is there to define file name.
+#rename some of the variables and select baseline scans
+rename_vec <- c(age = "PCW_at_scan", sex = "sex_baseline", site = "site_id_l", nonSingleton = "nonSingleton")
+
+#read in the dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sOne_df <- read.csv(splitOne_data_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+sOne_df$sex <- as.factor(sOne_df$sex)
+sOne_df$site <- as.factor(sOne_df$site)
+sOne_df$age <- as.numeric(sOne_df$age)
+
+#read in the dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sTwo_df <- read.csv(splitTwo_data_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+sTwo_df$sex <- as.factor(sTwo_df$sex)
+sTwo_df$site <- as.factor(sTwo_df$site)
+sTwo_df$age <- as.numeric(sTwo_df$age)
+
+#read in the test dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sOne_test_df <- read.csv(splitOne_test_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+sOne_test_df$sex <- as.factor(sOne_test_df$sex)
+sOne_test_df$site <- as.factor(sOne_test_df$site)
+sOne_test_df$age <- as.numeric(sOne_test_df$age)
+
+#read in the test dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sTwo_test_df <- read.csv(splitTwo_test_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+sTwo_test_df$sex <- as.factor(sTwo_test_df$sex)
+sTwo_test_df$site <- as.factor(sTwo_test_df$site)
+sTwo_test_df$age <- as.numeric(sTwo_test_df$age)
+```
+##Load fitted model(s)
+reading in models fit to both split halves (separately)
+```{r}
+sOne_models <- lapply(list.files(path = splitOne_folder, pattern = "\\.rds$", full.names = TRUE), readRDS)
+sTwo_models <- lapply(list.files(path = splitTwo_folder, pattern = "\\.rds$", full.names = TRUE), readRDS)
+```
+
+#Check fits
+Make a table of error messages, warnings etc
+Phenotype set should not have included wmhint, those models gave errors: all wmhint models are deleted.
+```{r}
+sOne_fits <- inspect_model_fits(splitOne_folder, sOne_fits_stats_filename)
+sOne_not_converge <- sOne_models[sapply(sOne_models, function(x){x$converged == FALSE})]
+
+sTwo_fits <- inspect_model_fits(splitTwo_folder, sTwo_fits_stats_filename)
+sTwo_not_converge <- sTwo_models[sapply(sTwo_models, function(x){x$converged == FALSE})]
+```
+
+#PLotting wp and centile fans
+##sOne
+```{r}
+# worm plots for fits that did not converge
+wp_sOne_plots <- lapply(seq_along(sOne_models), function(i){ print(Reduce(paste,deparse(sOne_models[[i]]$mu.formula))); wp.taki(sOne_models[[i]], ylim = 1.5)})
+
+# look at centiles for fits that did not converge
+centile_sOne_models_plots <- lapply(seq_along(sOne_models), function(i){model = sOne_models[[i]]; make_centile_fan(model, sOne_df, "age", "sex", desiredCentiles = c(0.05, 0.5, 0.95)) + labs(title = print(Reduce(paste,deparse(model$mu.formula))), x = "Age", y = model$mu.formula[[2]], color = "Sex=Female", fill="Sex=Female")})
+
+centile_sOne_models_plots <- vector(mode = "list", length = length(sOne_models))
+
+for (i in 1:length(sOne_models)) {
+  model = sOne_models[[i]]
+  centile_sOne_models_plots[[i]] <- make_centile_fan(model, sOne_df, "age", "sex", desiredCentiles = c(0.05, 0.5, 0.95)) + labs(title = print(Reduce(paste,deparse(model$mu.formula))), x = "Age", y = model$mu.formula[[2]], color = "Sex=Female", fill="Sex=Female")
+}
+
+n <- length(sOne_models)
+nCol <- floor(sqrt(n))
+do.call("grid.arrange", c(wp_sOne_plots, ncol=nCol))
+do.call("grid.arrange", c(centile_sOne_models_plots, ncol=nCol))
+```
+
+##sTwo
+```{r}
+# worm plots for fits that did not converge
+wp_sTwo_plots <- lapply(seq_along(sTwo_models), function(i){ print(Reduce(paste,deparse(sTwo_models[[i]]$mu.formula))); wp.taki(sTwo_models[[i]])})
+
+# look at centiles for fits that did not converge
+centile_sTwo_models_plots <- lapply(seq_along(sTwo_models), function(i){model = sTwo_models[[i]]; make_centile_fan(model, sTwo_df, "age", "sex", desiredCentiles = c(0.05, 0.5, 0.95)) + labs(title = print(Reduce(paste,deparse(model$mu.formula))), x = "Age", y = model$mu.formula[[2]], color = "Sex=Female", fill="Sex=Female")})
+
+centile_sTwo_models_plots <- vector(mode = "list", length = length(sTwo_models))
+
+for (i in 1:length(sTwo_models)) {
+  model = sTwo_models[[i]]
+  centile_sTwo_models_plots[[i]] <- make_centile_fan(model, sTwo_df, "age", "sex", desiredCentiles = c(0.05, 0.5, 0.95)) + labs(title = print(Reduce(paste,deparse(model$mu.formula))), x = "Age", y = model$mu.formula[[2]], color = "Sex=Female", fill="Sex=Female")
+}
+
+n <- length(sTwo_models)
+nCol <- floor(sqrt(n))
+do.call("grid.arrange", c(wp_sTwo_plots, ncol=nCol))
+do.call("grid.arrange", c(centile_sTwo_models_plots, ncol=nCol))
+```
+
+
+#Plots
+##Diagnostic plots
+Global phenotypes
+```{r}
+#Worm plots for global models
+lapply(seq_along(sOne_models), function(i){ print(Reduce(paste,deparse(sOne_models[[i]]$mu.formula))); wp.taki(sOne_models[[i]]) + labs(title = print(Reduce(paste,deparse(sOne_models[[i]]$mu.formula))))})
+#Centile plots for global models
+lapply(seq_along(sOne_models), function(i, model = sOne_models[[i]]){make_centile_fan(model, sOne_df, "age", "sex", desiredCentiles = c(0.05, 0.5, 0.95)) + labs(title = print(Reduce(paste,deparse(sOne_models[[i]]$mu.formula))), x = "Age", y = sOne_models[[i]]$mu.formula[[2]], color = "Sex=Female", fill="Sex=Female")})
+```
+
+##Plot centiles on the test dataset
+```{r}
+#Centile plots for global models
+lapply(seq_along(global_models), function(i, model = global_models[[i]]){make_centile_fan(model, test_df, "age", "sex", desiredCentiles = c(0.05, 0.5, 0.95)) + labs(title = print(Reduce(paste,deparse(global_models[[i]]$mu.formula))), x = "Age", y = global_models[[i]]$mu.formula[[2]], color = "Sex=Female", fill="Sex=Female")})
+```
+
+
+## Centile plots
+I can't really make anything from the gamlss.ggplots package work :(
+data frame needs to be identical to the one that was used to fit the model? doesn't seem to work with anything different ..... 
+```{r}
+make_centile_fan(model, train, "age")
+#pe_param(model, "age") ##DOES NOT WORK!
+#fitted_terms(model, parameter = "mu") ##ALSO DOES NOT WORK!
+```
+
+
+
+
+
+
+#Predicting Centiles
+Predict centiles on the "test" sets using the "other" model.
+Using predict function for this
+Probably useful to read up on the predict function
+CHAPTER 13.4.1 LOOK THERE!!!!
+```{r}
+model <- sOne_models[[1]]
+sOne_centiles_GM <- pred_og_centile(sOne_models[[1]], sOne_df)
+model <- sTwo_models[[1]]
+og_df <- sTwo_df %>% select(c("age", "sex", "nonSingleton", "site", "smri_vol_cdk_total"))
+sOne_centiles_GM_splitmodel <- pred_og_centile(sTwo_models[[1]], og_df, new.data = sOne_df)
+```

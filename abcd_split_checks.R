@@ -60,47 +60,100 @@ table(abcd_all[which(abcd_all$triplet_statusFAM == TRUE), "siblings_twins"])#all
 table(abcd_all[which(abcd_all$twin_statusP == TRUE), "siblings_twins"])#75 singles and 44 siblings
 table(abcd_all[which(abcd_all$siblings_twins > 1), "genetic_zygosity_status_1"])#12 siblings 
 
-abcd_all_test <- abcd_all[which(abcd_all$matched_group == 1),]
-abcd_all_train <- abcd_all[which(abcd_all$matched_group == 2),]
+abcd_all_splitTwo <- abcd_all[which(abcd_all$matched_group == 1),]
+abcd_all_splitOne <- abcd_all[which(abcd_all$matched_group == 2),]
 
 #check how many repeated family IDs in each split group
-paste0("Test, # of unique family IDS:",length(unique(abcd_all_test$rel_family_id)),
-       "  unique # of participants:",length(unique(abcd_all_test$src_subject_id)),
-       "  # of rows in the dataframe:",dim(abcd_all_test)[1])
-paste0("Train, # of unique family IDS:",length(unique(abcd_all_train$rel_family_id)),
-       "  unique # of participants:",length(unique(abcd_all_train$src_subject_id)),
-       "  # of rows in the dataframe:",dim(abcd_all_train)[1])
-#Repeated family ids in each group. Keep one per family in each group, then cross-check the groups for repeated family IDs in between.
-#Keep one subject per family in the TRAIN set, and also ensure no shared family IDs between TRAIN and TEST
-#Remove matching ones from TEST. (check numbers between TRAIN and TEST sets to ensure that the N is similar.)
-set.seed(42)
-abcd_all_train_famFilt <- abcd_all_train %>%
-  group_by(rel_family_id) %>%
-  slice_sample(n = 1) #got rid of 901 people in the train set
+paste0("Test, # of unique family IDS:",length(unique(abcd_all_splitTwo$rel_family_id)),
+       "  unique # of participants:",length(unique(abcd_all_splitTwo$src_subject_id)),
+       "  # of rows in the dataframe:",dim(abcd_all_splitTwo)[1])
+paste0("Train, # of unique family IDS:",length(unique(abcd_all_splitOne$rel_family_id)),
+       "  unique # of participants:",length(unique(abcd_all_splitOne$src_subject_id)),
+       "  # of rows in the dataframe:",dim(abcd_all_splitOne)[1])
+
+#Remove matching ones from TEST
 #look for people who share family IDs between train and test groups.
-abcd_all_test_famFilt <- abcd_all_test %>%
-  filter(!(rel_family_id %in% abcd_all_train_famFilt$rel_family_id))#got rid of 73 people in the test set
-sum(duplicated(abcd_all_test_famFilt$rel_family_id))#886 duplicates in the test set
+abcd_all_splitTwo_test_famFilt <- abcd_all_splitTwo %>%
+  filter(!(rel_family_id %in% abcd_all_splitOne$rel_family_id))#got rid of 73 people in the split two test set
+
+sum(duplicated(abcd_all_splitTwo_test_famFilt$rel_family_id))#886 duplicates in the split two train set
+
+abcd_all_splitOne_test_famFilt <- abcd_all_splitOne %>%
+  filter(!(rel_family_id %in% abcd_all_splitTwo$rel_family_id))#got rid of 68 people in the split one test set
+
+sum(duplicated(abcd_all_splitOne_test_famFilt$rel_family_id))#898 duplicates in the split one test set
+
 #sanity check
-sum(abcd_all_test_famFilt$rel_family_id %in% abcd_all_train_famFilt$rel_family_id) #0
+sum(abcd_all_splitTwo_test_famFilt$rel_family_id %in% abcd_all_splitOne$rel_family_id) #0
+sum(abcd_all_splitOne_test_famFilt$rel_family_id %in% abcd_all_splitTwo$rel_family_id) #0
+
+#Save the two test SETS
+abcd_matched_splitOne_test <- abcd_all_splitOne_test_famFilt %>% select(all_of(vars_to_save)) #242 variables
+abcd_matched_splitTwo_test <- abcd_all_splitTwo_test_famFilt %>% select(all_of(vars_to_save)) #242 variables
+
+# write.csv(abcd_matched_splitOne_test, file = paste0(out_folder,
+#                                            "abcd_baseline_matchedTestOne_selectVars_famfilter", 
+#                                            Sys.Date(),".csv"))
+# write.csv(abcd_matched_splitTwo_test, file = paste0(out_folder,
+#                                            "abcd_baseline_matchedTestTwo_selectVars_famfilter", 
+#                                            Sys.Date(),".csv"))
+#FOR TRAIN SETS, REMOVE DUP FAMILY ID (select only one person from each family)
+
+#Create first train set
+set.seed(42)
+abcd_all_splitOne_train_famFilt <- abcd_all_splitOne_test_famFilt %>%
+  group_by(rel_family_id) %>%
+  slice_sample(n = 1) #got rid of 901 people in the train 1 set
+
+
+#Create the second train set for the split-half approach
+set.seed(42)
+abcd_all_splitTwo_train_famFilt <- abcd_all_splitTwo_test_famFilt %>%
+  group_by(rel_family_id) %>%
+  slice_sample(n = 1) #got rid of XX people in the train 2 set
+
+#sanity check
+sum(duplicated(abcd_all_splitOne_train_famFilt$rel_family_id))#0
+sum(duplicated(abcd_all_splitTwo_train_famFilt$rel_family_id))#0
+sum(abcd_all_splitTwo_train_famFilt$rel_family_id %in% abcd_all_splitOne$rel_family_id) #0
+sum(abcd_all_splitOne_train_famFilt$rel_family_id %in% abcd_all_splitTwo$rel_family_id) #0
+
 
 #Check GA/PM distribution between the splits.
 #distribution seems similar
-hist(abcd_all_train_famFilt$gestAge)
-hist(abcd_all_test_famFilt$gestAge)
-#look more closely to GA < 40, also seems similarly distributed
-hist(abcd_all_train_famFilt[abcd_all_train_famFilt$gestAge < 40,]$gestAge)
-hist(abcd_all_test_famFilt[abcd_all_test_famFilt$gestAge < 40,]$gestAge)
-#numbers are similar for PTB vs Not
-table(abcd_all_train_famFilt$PTB)
-table(abcd_all_test_famFilt$PTB)
+# hist(abcd_all_splitOne_famFilt$gestAge)
+# hist(abcd_all_splitTwo_famFilt$gestAge)
+# #look more closely to GA < 40, also seems similarly distributed
+# hist(abcd_all_splitOne_famFilt[abcd_all_splitOne_famFilt$gestAge < 40,]$gestAge)
+# hist(abcd_all_splitTwo_famFilt[abcd_all_splitTwo_famFilt$gestAge < 40,]$gestAge)
+# #numbers are similar for PTB vs Not
+# table(abcd_all_splitOne_famFilt$PTB)
+# table(abcd_all_splitTwo_famFilt$PTB)
 
-abcd_matched_train <- abcd_all_train_famFilt %>% select(all_of(vars_to_save)) #242 variables
-abcd_matched_test <- abcd_all_test_famFilt %>% select(all_of(vars_to_save)) #242 variables
+abcd_matched_splitOne_train <- abcd_all_splitOne_train_famFilt %>% select(all_of(vars_to_save)) #242 variables
+abcd_matched_splitTwo_train <- abcd_all_splitTwo_train_famFilt %>% select(all_of(vars_to_save)) #242 variables
 
-write.csv(abcd_matched_train, file = paste0(out_folder,
-                                            "abcd_baseline_matchedTrain_selectVars_famfilter", 
+write.csv(abcd_matched_splitOne_train, file = paste0(out_folder,
+                                            "abcd_baseline_matchedTrainOne_selectVars_famfilter", 
                                             Sys.Date(),".csv"))
-write.csv(abcd_matched_test, file = paste0(out_folder,
-                                            "abcd_baseline_matchedTest_selectVars_famfilter", 
+write.csv(abcd_matched_splitTwo_train, file = paste0(out_folder,
+                                            "abcd_baseline_matchedTrainTwo_selectVars_famfilter", 
                                             Sys.Date(),".csv"))
+
+#Save subject IDs only
+splitOne_train_ids <- abcd_all_splitOne_train_famFilt$src_subject_id
+write.csv(splitOne_train_ids, file = paste0(out_folder,
+                                                     "abcd_splitOne_train_ids", 
+                                                     ".csv"))
+splitOne_test_ids <- abcd_all_splitOne_test_famFilt$src_subject_id
+write.csv(splitOne_test_ids, file = paste0(out_folder,
+                                            "abcd_splitOne_test_ids", 
+                                            ".csv"))
+splitTwo_train_ids <- abcd_all_splitTwo_train_famFilt$src_subject_id
+write.csv(splitTwo_train_ids, file = paste0(out_folder,
+                                            "abcd_splitTwo_train_ids", 
+                                            ".csv"))
+splitTwo_test_ids <- abcd_all_splitTwo_test_famFilt$src_subject_id
+write.csv(splitTwo_test_ids, file = paste0(out_folder,
+                                           "abcd_splitTwo_test_ids", 
+                                           ".csv"))

@@ -1,0 +1,393 @@
+---
+title: "family_selection"
+author: "Eren Kafadar"
+date: "2024-10-10"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(magrittr)
+library(readr)
+library(stringr)
+library(ggplot2)
+library(gamlss) #to fit model
+library(gamlssTools)
+library(gridExtra)
+library(tidyr)
+
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/inspect_model_fits.R")
+
+```
+Load dataframe used for family selection model fitting
+#select variables for gamlss, including phenotype specified by the loaded model
+```{r}
+data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_long_selectVars_NOdxfilter_famfilter2024-09-20.csv"
+
+#data_filename <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_long_selectVars_NOdxfilter_famfilter_outliersRM2024-10-28.csv"
+
+#rename some of the variables and select baseline scans
+rename_vec <- c(age = "PCW_at_scan", sex = "sex_baseline", site = "site_id_l", nonSingleton = "nonSingleton")
+
+# #read in the dataframe and set variable types, subset for only baseline data
+#subset for age (PCW at scan) not being NA (will be NA is gestAge was NA, should be N = 66)
+#subset for nonSingleton not being NA(will be NA if the parent questionnaire was NA, should be N = 2)
+#subset for sex %in% M or F, so no I in the model (should be N = 3 for I)
+df <- read.csv(data_filename) %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))# 9263 folks
+df$sex <- as.factor(df$sex)
+df$site <- as.factor(df$site) 
+df$age <- as.numeric(df$age)
+```
+
+Paths for folders & stats files for different iterations of family selection model fitting.
+```{r}
+#path for linear model with site as fixed variable
+fixedsite_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_linear_fixedsite/"
+fixedsite_fits_stats_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_linear_fixedsite/gamlss_fits_stats_all.csv"
+
+#path for linear model with outliers removed within each phenotype
+outRM_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_linear_outRM/"
+outRM_fits_stats_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_linear_outRM/gamlss_fits_stats_all.csv"
+
+#path for RS method results
+RS200_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_RS/"
+#load family fit stats
+RS200_fits_stats_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_RS/gamlss_fits_stats_RS.csv"
+
+RS400_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_RS/fits_cyc400/"
+#load family fit stats
+RS400_fits_stats_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_RS/fits_cyc400/gamlss_fits_stats_RS.csv"
+
+#paths for CG method results
+CG200_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/new_fits_singleton/"
+#load family fit stats
+CG200_fits_stats_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_CG/new_fits_singleton/gamlss_family_fits_stats_CG_new.csv"
+
+#paths for age as linear results (RS method, cyc 200)
+linear_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_linear/"
+#load family fit stats
+linear_fits_stats_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_linear/gamlss_fits_stats_all.csv"
+
+#paths for age as linear results (RS method, cyc 200)
+skew_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_skew/"
+#load family fit stats
+skew_fits_stats_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_family_skew/gamlss_fits_stats_all.csv"
+
+```
+
+Load all (relevant) fits
+```{r}
+linear_models <- lapply(list.files(path = linear_folder, pattern = ".*\\.rds$", full.names = TRUE), readRDS)
+rs200_models <- lapply(list.files(path = RS200_folder, pattern = ".*\\.rds$", full.names = TRUE), readRDS)
+skew_models <- lapply(list.files(path = skew_folder, pattern = ".*\\.rds$", full.names = TRUE), readRDS)
+outrm_models <- lapply(list.files(path = outRM_folder, pattern = ".*\\.rds$", full.names = TRUE), readRDS)
+fixedsite_models <- lapply(list.files(path = fixedsite_folder, pattern = ".*\\.rds$", full.names = TRUE), readRDS)
+```
+
+In terms of how many models fit and do not give errors, RS with 400 cycles seems to have most models fit and be saved. Still 25 models have convergence errors at the end of fitting (25/90)
+** increasing iterations 200 --> 400 barely helped with convergence (only one extra model converged) So unlikely that refit() will help.
+
+```{r}
+fits_rs200 <- inspect_model_fits(RS200_folder, RS200_fits_stats_filename) %>% filter(family_abbr != "RGE")
+
+fits_linear <- inspect_model_fits(linear_folder, linear_fits_stats_filename)
+
+fits_skew <- inspect_model_fits(skew_folder, skew_fits_stats_filename)
+
+fits_outrm <- inspect_model_fits(outRM_folder, outRM_fits_stats_filename)
+
+fits_fixedsite <- inspect_model_fits(fixedsite_folder, fixedsite_fits_stats_filename)
+
+fits_rs400 <- inspect_model_fits(RS400_folder, RS400_fits_stats_filename)
+
+#fits_cg200 <- inspect_model_fits(CG200_folder, CG200_fits_stats_filename)
+
+
+#look at which families don't converge
+table(fits_rs200[which(fits_rs200$convergence_warn_end == 1),"family_abbr"])
+table(fits_skew[which(fits_skew$convergence_warn_end == 1),"family_abbr"])
+table(fits_rs400[which(fits_rs400$convergence_warn_end == 1),"family_abbr"])
+#table(fits_cg200[which(fits_cg200$convergence_warn_end == 1),"family_abbr"])
+table(fits_linear[which(fits_linear$convergence_warn_end == 1),"family_abbr"])
+table(fits_outrm[which(fits_outrm$convergence_warn_end == 1),"family_abbr"])
+table(fits_fixedsite[which(fits_fixedsite$convergence_warn_end == 1),"family_abbr"])
+
+#warnings that are not convergence warnings
+#subset(fits_rs400, warning == 1 & convergence_warning == 0 & error == 0)$warning_text
+###^^body (fun) argument is not a function warning. see below for which families, is there a pattern?
+#subset(fits_rs400, warning == 1 & convergence_warning == 0 & error == 0)$modelFam #(all LNO)
+```
+
+Split fits dataframe by models that include nonSingleton variable
+```{r}
+#separate out fits with nonSingleton status as categorical (the most complex model)
+fits_nonSingleton <- fits_linear %>% subset(., grepl("nonSingleton", model))
+
+#fits without nonSingleton as a variable
+fits_NOnonSingleton <- fits_linear %>% subset(., !(grepl("nonSingleton", model)))
+
+
+### Looking at most complex model, which includes "nonSingleton" status.
+
+#how many models of each family available (5 max)
+table(fits_nonSingleton$family_abbr)
+
+#look at which models
+table(fits_nonSingleton[which(fits_nonSingleton$convergence_warn_end == 1),"family_abbr"])
+table(fits_nonSingleton[which(fits_nonSingleton$convergence_warn_end == 1),"phenotype"])
+#table(fits_nonSingleton[which(fits_nonSingleton$convergence_warn_end == 1),"modelFam"])
+```
+
+Look at worm plots for all GG model fits.
+```{r}
+models <- linear_models
+#models <- rs200_models
+#models <- skew_models
+models <- outrm_models
+models <- fixedsite_models
+
+wormplot_grid <- function(models, pattern = "GG", title_field = "mu.formula[[2]]",plot = FALSE){
+#not_converged <- models[sapply(models, function(x){x$converged == FALSE})]
+models_nonSingleton <- models[sapply(models, function(x){any(grepl("nonSingleton",x$mu.terms))})]
+
+plot_models <- models_nonSingleton[sapply(models_nonSingleton, function(x){any(grepl(pattern,x))})]
+
+#plot in a grid
+#GG_wp_linear <- lapply(GG_models_linear, wp.taki)
+#GG_wp_spline <- lapply(GG_models_spline, wp.taki)
+title <- paste0("plot_models[[i]]$",title_field)
+plots <- lapply(seq_along(plot_models), function(i){wp.taki(plot_models[[i]]) + labs(title = eval(parse(text=paste0("plot_models[[i]]$",title_field))))})
+
+if (plot == TRUE){
+n <- length(plots)
+nCol <- floor(sqrt(n))
+#do.call("grid.arrange", c(GG_wp_linear, ncol=nCol))
+#do.call("grid.arrange", c(GG_wp_spline, ncol=nCol))
+do.call("grid.arrange", c(plots, ncol=nCol))
+}
+
+return(plots)
+}#end of function
+
+#get GAIC from these models -- DOES NOT WORK
+# lapply(seq_along(GG_models_spline), function(i){model_GAIC(GG_models_spline[[i]], GG_models_linear[[i]]) + labs(title = GG_models_spline[[i]]$mu.formula[[2]])})
+```
+
+Get BIC difference between deviations from the "OG" model:
+```{r}
+#look at BIC for these models
+fits_linear_GG <- fits_linear %>% filter(family_abbr == "GG")
+fits_rs200_GG <- fits_rs200 %>% filter(family_abbr == "GG")
+fits_skew_GG <- fits_skew %>% filter(family_abbr == "GG")
+fits_fixedsite_GG <- fits_fixedsite %>% filter(family_abbr == "GG")
+
+fits_linear_GG$BIC - fits_rs200_GG$BIC
+fits_skew_GG$BIC - fits_rs200_GG$BIC
+fits_linear_GG$BIC - fits_fixedsite_GG$BIC
+```
+
+Get centile plots to see the shape of the different models
+```{r}
+models <- linear_models
+#models <- rs200_models
+#models <- skew_models
+#models <- outrm_models
+models <- fixedsite_models
+pattern = "GG"
+title_field = "mu.formula[[2]]"
+plot = TRUE
+
+#not working within a function cannot find "model" 
+#centileplot_grid <- function(models, df, pattern = "BCCG", title_field = #"mu.formula[[2]]",plot = FALSE){
+#not_converged <- models[sapply(models, function(x){x$converged == FALSE})]
+
+models_nonSingleton <- models[sapply(models, function(x){any(grepl("nonSingleton",x$mu.terms))})]
+
+plot_models <- models_nonSingleton[sapply(models_nonSingleton, function(x){any(grepl(pattern,x))})]
+
+#plot in a grid
+#plots <- lapply(seq_along(plot_models), function(i){model <- plot_models[[i]]; make_centile_fan(model, df, "age", "sex", desiredCentiles = c(0.05, 0.5, 0.95)) + labs(title = eval(parse(text = paste0("plot_models[[i]]$",title_field))), x = "Age", color = "Sex=Female", fill="Sex=Female")})
+
+plots <- vector(mode = "list", length = length(plot_models))
+
+for (i in 1:length(plot_models)) {
+  model = plot_models[[i]]
+  print(model$mu.formula)
+  phenotype <- as.character(plot_models[[i]]$mu.terms[[2]])
+  df_select <- df %>% 
+  select(sex, age, site, nonSingleton, phenotype) %>% 
+  drop_na()
+  plots[[i]] <- make_centile_fan(model, df_select, "age", "sex", desiredCentiles = c(0.05, 0.5, 0.95)) + labs(title = eval(parse(text = paste0("plot_models[[i]]$",title_field))), x = "Age", color = "Sex=Female", fill="Sex=Female")
+}
+
+if (plot == TRUE){
+n <- length(plots)
+nCol <- floor(sqrt(n))
+#do.call("grid.arrange", c(GG_wp_linear, ncol=nCol))
+#do.call("grid.arrange", c(GG_wp_spline, ncol=nCol))
+do.call("grid.arrange", c(plots, ncol=nCol))
+}
+
+#return(plots)
+#}#end of function
+
+```
+
+Look at fits for a specific phenotype
+```{r}
+#select variables for gamlss, including phenotype specified by the loaded model
+
+phenotype <- "smri_vol_scs_allventricles"
+df_ventricles <- df %>% select(sex, age, site, nonSingleton, phenotype)
+wp.taki(plot_models[[4]], df_ventricles$age)
+make_centile_fan(GG_models[[1]], df_ventricles, "age" ,"sex")
+
+```
+
+BIC plots for all phenotypes. Only converging families vs including non-converging families.
+```{r}
+##Get AIC and BIC plots
+
+#For all families that fit, regardless of convergence warning. Get mean, max, and min.
+#Also show plots by phenotype (currently the df does not have phenotype as a separate value)
+#fits_nonSingleton <- fits_nonSingleton[which(fits_nonSingleton$family_abbr %in% family_count_full$Var1),]#65
+
+#Mean AIC and BIC table isn't actually statistically useful to make decisions with
+# fits_table_all <- fits_nonSingleton %>%
+#               group_by(family_abbr) %>%
+#               summarise(
+#                 mean_AIC = mean(AIC),
+#                 max_AIC = max(AIC),
+#                 min_AIC = min(AIC),
+#                 mean_BIC = mean(AIC),
+#                 max_BIC = max(BIC),
+#                 min_BIC = min(BIC)
+#                 )
+# min(fits_table$mean_BIC)
+
+#separate plots for each of the 5 phenotypes in the models. Regardless of convergence warning.
+
+#BIC_WMV <- 
+  fits_nonSingleton %>% filter(phenotype == "totalWM_cb") %>% 
+  ggplot(., aes(x = log(BIC - min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("WMV, all") + labs(x = "scaled log BIC", y = "Distribution family")
+
+#BIC_GMV <- 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_cdk_total") %>% 
+  ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("cort GMV, all") + labs(x = "scaled log BIC", y = "Distribution family")
+
+#BIC_scGMV <- 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_subcorticalgv") %>% 
+  ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("subcort GMV, all") + labs(x = "scaled log BIC", y = "Distribution family")
+
+#BIC_Vent <- 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_allventricles") %>% 
+  ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("Ventricles, all") + labs(x = "scaled log BIC", y = "Distribution family")
+
+#BIC_wholeB <- 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_wholeb") %>% 
+  ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr, fill = convergence_warn_end)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("Whole Brain, all") + labs(x = "scaled log BIC", y = "Distribution family")
+
+
+#Only without end convergence warning
+
+#BIC_WMV <- 
+  fits_nonSingleton %>% filter(phenotype == "totalWM_cb"& convergence_warn_end == 0) %>% 
+  ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("WMV, converged") + labs(x = "scaled log BIC", y = "Distribution family")
+
+#BIC_GMV <- 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_cdk_total"& convergence_warn_end == 0) %>% 
+  ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("cort GMV, converged") + labs(x = "scaled log BIC", y = "Distribution family")
+
+#BIC_scGMV <- 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_subcorticalgv"& convergence_warn_end == 0) %>% 
+  ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("subcort GMV, converged") + labs(x = "scaled log BIC", y = "Distribution family")
+
+#BIC_Vent <- 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_allventricles"& convergence_warn_end == 0) %>% 
+  ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("Ventricles, converged") + labs(x = "scaled log BIC", y = "Distribution family")
+
+#BIC_wholeB <- 
+  fits_nonSingleton %>% filter(phenotype == "smri_vol_scs_wholeb"& convergence_warn_end == 0) %>% 
+  ggplot(., aes(x = log(BIC -min(BIC)), y = family_abbr)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("Whole Brain, converged") + labs(x = "scaled log BIC", y = "Distribution family")
+```
+Mean rank of BIC between multiple phenotypes.
+```{r}
+### Get a rank of different families for both nonSingleton and no nonSingleton models.
+  ## Assign a rank order within each phenotype and take an average of rank orders across phenotypes.
+
+  #For models that have nonSingleton status
+fits_nonSingleton <- fits_nonSingleton %>%
+  group_by(phenotype) %>%
+  mutate(rank_BIC = rank(BIC, ties.method = "min"))
+
+mean_rank <- fits_nonSingleton %>%
+  group_by(family) %>%
+  summarize(mean_rank_BIC = mean(rank_BIC)) %>%
+  arrange(mean_rank_BIC)
+
+print(mean_rank)
+
+#For models that do NOT include nonSingleton status
+fits_NOnonSingleton <- fits_NOnonSingleton %>%
+  group_by(phenotype) %>%
+  mutate(rank_BIC = rank(BIC, ties.method = "min"))
+
+mean_rank <- fits_NOnonSingleton %>%
+  group_by(family) %>%
+  summarize(mean_rank_BIC = mean(rank_BIC)) %>%
+  arrange(mean_rank_BIC)
+
+print(mean_rank)
+
+
+## ONLY for models that have converged.
+
+#For models that have nonSingleton status
+fits_nonSingleton <- fits_nonSingleton %>% 
+  filter(convergence_warn_end == 0) %>%
+  group_by(phenotype) %>%
+  mutate(rank_BIC = rank(BIC, ties.method = "min"))
+
+mean_rank <- fits_nonSingleton %>%
+  group_by(family) %>%
+  summarize(mean_rank_BIC = mean(rank_BIC)) %>%
+  arrange(mean_rank_BIC)
+
+print(mean_rank)
+
+#For models that do NOT include nonSingleton status
+fits_NOnonSingleton <- fits_NOnonSingleton %>%
+  filter(convergence_warn_end == 0) %>%
+  group_by(phenotype) %>%
+  mutate(rank_BIC = rank(BIC, ties.method = "min"))
+
+mean_rank <- fits_NOnonSingleton %>%
+  group_by(family) %>%
+  summarize(mean_rank_BIC = mean(rank_BIC)) %>%
+  arrange(mean_rank_BIC)
+
+print(mean_rank)
+```

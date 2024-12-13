@@ -1,0 +1,306 @@
+---
+  title: "model_selection_longitudinal"
+author: "Eren Kafadar"
+date: "2024-11-29"
+output: html_document
+---
+  
+``` {r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#Load libraries
+library(dplyr)
+library(magrittr)
+library(readr)
+library(stringr)
+library(ggplot2)
+library(gamlss) #to fit model
+require(gamlss.ggplots)
+library(tidyr)
+library(gamlssTools) #Margaret's package
+library(gridExtra)
+
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/inspect_model_fits.R")
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/gamlss_functions_EK.R")
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/data_functions.R")
+```
+
+#GENERATE Models
+generate basic models without the first time point
+``` {r}
+family_set <- c("GG")
+#smri_vol_cdk_total is for total cortical GM, this is from the Desikan parcellation. The rest are from Aseg parcellation. 
+phenotype_set <- c("smri_vol_cdk_total.t2", "totalWM_cb.t2","smri_vol_scs_subcorticalgv.t2", "smri_vol_scs_allventricles.t2", "smri_vol_scs_wholeb.t2")
+
+out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2/"
+
+terms_all = c("~1", "PCW_between_t1t2", "random(site)", "age", "sex", "nonSingleton")
+
+generate_gamlss_models(phenotype_set, 
+                       out_folder, 
+                       family_set = family_set,
+                       mu_terms = terms_all,
+                       sigma_terms = terms_all,
+                       nu_terms = terms_all,
+                       tau_terms = NULL,
+                       n_crit = 200,
+                       long = TRUE)
+```
+
+** I edited the generate_gamlss_models function to handle longitudinal models, so this part is not needed anymore.
+read in the models generated above,
+save another version with the t1 phenotype added to the predictors (will produce 3 new models, with t1 phenotype added to mu, mu and sigma, mu and sigma and nu)
+save these new versions
+```{r}
+models_list_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2/"
+models_list <-  lapply(list.files(models_list_folder, pattern = "\\.rds$", full.names = TRUE),readRDS)
+
+for(n in 1:length(models_list)){
+model <- models_list[[n]]
+ph.t1 <- model$phenotype %>% gsub(".t2", ".t1", .)
+new_model_mu <- model
+new_model_mu$mu.formula <- as.formula(paste(deparse(model$mu.formula),"+", ph.t1))
+new_model_sigma <- model
+new_model_sigma$mu.formula <- as.formula(paste(deparse(model$mu.formula),"+", ph.t1))
+new_model_sigma$sigma.formula <- as.formula(paste(deparse(model$sigma.formula),"+", ph.t1))
+new_model_nu <- model
+new_model_nu$mu.formula <- as.formula(paste(deparse(model$mu.formula),"+", ph.t1))
+new_model_nu$sigma.formula <- as.formula(paste(deparse(model$sigma.formula),"+", ph.t1))
+new_model_nu$nu.formula <- as.formula(paste(deparse(model$nu.formula), "+",ph.t1))
+#save three new models
+mu_modelname <- paste("gamlss_model",
+                     "MU", paste0("~1", ".t1.", paste(labels(terms(model$mu.formula)), collapse = ".")),
+                     "SIGMA", paste("~1", paste(labels(terms(model$sigma.formula)), collapse = ".")),
+                     "NU", paste("~1", paste(labels(terms(model$nu.formula)), collapse = ".")),
+                    model$fam,
+                    model$phenotype, sep = "_")
+mu_filename <- paste0(models_list_folder,mu_modelname,".rds")
+saveRDS(new_model_mu, file = mu_filename)
+#
+sigma_modelname <- paste("gamlss_model",
+                     "MU", paste("~1", ".t1.",paste(labels(terms(model$mu.formula)), collapse = ".")),
+                     "SIGMA", paste("~1", ".t1.",paste(labels(terms(model$sigma.formula)), collapse = ".")),
+                     "NU", paste("~1", paste(labels(terms(model$nu.formula)), collapse = ".")),
+                    model$fam,
+                    model$phenotype, sep = "_")
+sigma_filename <- paste0(models_list_folder,sigma_modelname,".rds")
+saveRDS(new_model_sigma, file = sigma_filename)
+#
+nu_modelname <- paste("gamlss_model",
+                     "MU", paste("~1", ".t1.",paste(labels(terms(model$mu.formula)), collapse = ".")),
+                     "SIGMA", paste("~1", ".t1.",paste(labels(terms(model$sigma.formula)), collapse = ".")),
+                     "NU", paste("~1", ".t1.",paste(labels(terms(model$nu.formula)), collapse = ".")),
+                    model$fam,
+                    model$phenotype, sep = "_")
+nu_filename <- paste0(models_list_folder,nu_modelname,".rds")
+saveRDS(new_model_nu, file = nu_filename)
+#
+rm(model, ph.t1, new_model_mu, new_model_sigma, new_model_nu, mu_filename, sigma_filename, nu_filename, mu_modelname, sigma_modelname, nu_modelname)
+}
+
+```
+
+
+Run fits submitting an array job.
+With the specifications below:
+
+#Global fits GG, RS, model selection split 1
+sbatch array_script_submit.sh submit_gamlss_fits_ABCD.sh /mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2 "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2/" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_t1t2_wide_sOne_train.csv" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_long_global_ONE/" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_long_global_ONE/gamlss_fits_stats"
+
+#Global fits GG, RS, model selection split 2
+sbatch array_script_submit.sh submit_gamlss_fits_ABCD.sh /mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2 "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2/" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_t1t2_wide_sTwo_train.csv" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_long_global_TWO/" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_long_global_TWO/gamlss_fits_stats"
+
+#FITS ANALYSIS
+
+##Define files
+``` {r}
+#file paths
+splitOne_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_long_global_ONE/"
+splitTwo_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_long_global_TWO/"
+sOne_fits_stats_filename <- paste0(splitOne_folder, "gamlss_fits_stats_all.csv")
+sTwo_fits_stats_filename <- paste0(splitTwo_folder, "gamlss_fits_stats_all.csv")
+splitOne_data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_t1t2_wide_sOne_train.csv"
+splitTwo_data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_t1t2_wide_sTwo_train.csv"
+splitOne_test_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_t1t2_wide_sOne_test.csv"
+splitTwo_test_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_t1t2_wide_sTwo_test.csv"
+phenotype_set <- readRDS("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/phenotype_set.rds")
+```
+## Load data frames and clean them up
+``` {r}
+#define the distribution family and phenotype and whether nonSingleton variable is there to define file name.
+#rename some of the variables and select baseline scans
+#rename_vec <- c(age = "PCW_at_scan", sex = "sex_baseline", site = "site_id_l", nonSingleton = "nonSingleton")
+
+#read in the dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sOne_df <- read.csv(splitOne_data_filename)  %>% select(-1) %>% 
+  subset(!is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+sOne_df$sex <- as.factor(sOne_df$sex)
+sOne_df$site <- as.factor(sOne_df$site)
+sOne_df$age <- as.numeric(sOne_df$age)
+
+#read in the dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sTwo_df <- read.csv(splitTwo_data_filename)  %>% select(-1) %>% 
+  subset(!is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+sTwo_df$sex <- as.factor(sTwo_df$sex)
+sTwo_df$site <- as.factor(sTwo_df$site)
+sTwo_df$age <- as.numeric(sTwo_df$age)
+
+#read in the test dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sOne_test_df <- read.csv(splitOne_test_filename)  %>% select(-1)  %>% 
+  subset(!is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+sOne_test_df$sex <- as.factor(sOne_test_df$sex)
+sOne_test_df$site <- as.factor(sOne_test_df$site)
+sOne_test_df$age <- as.numeric(sOne_test_df$age)
+
+#read in the test dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sTwo_test_df <- read.csv(splitTwo_test_filename)  %>% select(-1) %>% 
+  subset(!is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+sTwo_test_df$sex <- as.factor(sTwo_test_df$sex)
+sTwo_test_df$site <- as.factor(sTwo_test_df$site)
+sTwo_test_df$age <- as.numeric(sTwo_test_df$age)
+```
+##Load fitted model(s)
+reading in models fit to both split halves (separately)
+``` {r}
+sOne_models <- lapply(list.files(path = splitOne_folder, pattern = "\\.rds$", full.names = TRUE), readRDS)
+sTwo_models <- lapply(list.files(path = splitTwo_folder, pattern = "\\.rds$", full.names = TRUE), readRDS)
+
+#sOne_models <- lapply(list.files(path = splitOne_folder, pattern = "\\.RData$", full.names = TRUE), load)
+#sTwo_models <- lapply(list.files(path = splitTwo_folder, pattern = "\\.RData$", full.names = TRUE), load)
+```
+
+#Check fits
+Make a table of error messages, warnings etc
+Phenotype set should not have included wmhint, those models gave errors: all wmhint models are deleted.
+```{r}
+sOne_fits <- inspect_model_fits(splitOne_folder, sOne_fits_stats_filename)
+sOne_not_converge <- sOne_models[sapply(sOne_models, function(x){x$converged == FALSE})]
+
+sTwo_fits <- inspect_model_fits(splitTwo_folder, sTwo_fits_stats_filename)
+sTwo_not_converge <- sTwo_models[sapply(sTwo_models, function(x){x$converged == FALSE})]
+```
+workaround because the above inspect_model_fits fct doesn't work with the longitudinal model outputs
+```{r}
+sOne_fits <- read.csv(sOne_fits_stats_filename)
+sOne_fits$modelFam <- paste(fits_stats$mu_formula, 
+                             fits_stats$sigma_formula, 
+                             fits_stats$nu_formula, 
+                             fits_stats$family_abbr, sep = "__")
+sOne_fits$phenotype <- as.character(lapply(sOne_fits$mu_formula, str_extract, pattern = ".*(?= ~)"))
+```
+#BIC
+##BIC plots for each phenotype
+sOne
+```{r}
+sOne_fits$ylabel <- paste("MU",gsub(".*~", "", sOne_fits$sigma_formula), "SIGMA", gsub(".*~", "", sOne_fits$sigma_formula), "NU", gsub(".*~", "", sOne_fits$nu_formula), sep = ".")
+
+sOne_fits <- sOne_fits %>% 
+  filter(!is.na(BIC)) %>%
+  group_by(phenotype) %>%
+  mutate(scaled_log_BIC = log(BIC - min(BIC)))
+
+#RANK TOP 20 models and only plot those!!!
+BIC_WMV <- 
+  sOne_fits %>% filter(phenotype == "totalWM_cb.t2") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("WMV, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+BIC_GMV <- 
+  sOne_fits %>% filter(phenotype == "smri_vol_cdk_total") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("cort GMV, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+BIC_scGMV <- 
+  sOne_fits %>% filter(phenotype == "smri_vol_scs_subcorticalgv") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("subcort GMV, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+
+BIC_Vent <- 
+  sOne_fits %>% filter(phenotype == "smri_vol_scs_allventricles") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("Ventricles, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+BIC_wholeB <- 
+  sOne_fits %>% filter(phenotype == "smri_vol_scs_wholeb") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("Whole Brain, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+```
+
+sTwo
+``` {r}
+sTwo_fits$ylabel <- paste("MU",gsub(".*~", "", sTwo_fits$sigma_formula), "SIGMA", gsub(".*~", "", sTwo_fits$sigma_formula), "NU", gsub(".*~", "", sTwo_fits$nu_formula), sep = ".")
+
+sTwo_fits <- sTwo_fits %>% 
+  filter(!is.na(BIC)) %>%
+  group_by(phenotype) %>%
+  mutate(scaled_log_BIC = log(BIC - min(BIC)))
+
+sTwo_BIC_WMV <- 
+  sTwo_fits %>% filter(phenotype == "totalWM_cb") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("WMV, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+sTwo_BIC_GMV <- 
+  sTwo_fits %>% filter(phenotype == "smri_vol_cdk_total") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("cort GMV, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+sTwo_BIC_scGMV <- 
+  sTwo_fits %>% filter(phenotype == "smri_vol_scs_subcorticalgv") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("subcort GMV, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+
+sTwo_BIC_Vent <- 
+  sTwo_fits %>% filter(phenotype == "smri_vol_scs_allventricles") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("Ventricles, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+sTwo_BIC_wholeB <- 
+  sTwo_fits %>% filter(phenotype == "smri_vol_scs_wholeb") %>% 
+  ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
+  geom_histogram(stat = "identity") + 
+  ggtitle("Whole Brain, all") + labs(x = "scaled log BIC", y = "Model") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 6))
+
+```
+##get table of BIC within each phenotype
+-- adapt code from family selection notebook
+```{r}
+sOne_best <- sOne_fits %>%
+  group_by(phenotype) %>%
+  slice_min(BIC, n = 1)
+
+sTwo_best <- sTwo_fits %>%
+  group_by(phenotype) %>%
+  slice_min(BIC, n = 1)
+```
