@@ -25,80 +25,26 @@ source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/dat
 ```
 
 #GENERATE Models
-generate basic models without the first time point
+generate models including the first time point
 ``` {r}
-family_set <- c("GG")
-#smri_vol_cdk_total is for total cortical GM, this is from the Desikan parcellation. The rest are from Aseg parcellation. 
-phenotype_set <- c("smri_vol_cdk_total.t2", "totalWM_cb.t2","smri_vol_scs_subcorticalgv.t2", "smri_vol_scs_allventricles.t2", "smri_vol_scs_wholeb.t2")
-
-out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2/"
-
-terms_all = c("~1", "PCW_between_t1t2", "random(site)", "age", "sex", "nonSingleton")
-
-generate_gamlss_models(phenotype_set, 
-                       out_folder, 
-                       family_set = family_set,
-                       mu_terms = terms_all,
-                       sigma_terms = terms_all,
-                       nu_terms = terms_all,
-                       tau_terms = NULL,
-                       n_crit = 200,
-                       long = TRUE)
+# family_set <- c("GG")
+# #smri_vol_cdk_total is for total cortical GM, this is from the Desikan parcellation. The rest are from Aseg parcellation.
+# phenotype_set <- c("smri_vol_cdk_total.t2", "totalWM_cb.t2","smri_vol_scs_subcorticalgv.t2", "smri_vol_scs_allventricles.t2", "smri_vol_scs_wholeb.t2")
+# 
+# out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2/"
+# 
+# terms_all = c("~1", "PCW_between_t1t2", "random(site)", "age", "sex", "nonSingleton")
+# 
+# generate_gamlss_models(phenotype_set = phenotype_set,
+#                        out_folder = out_folder,
+#                        family_set = family_set,
+#                        mu_terms = terms_all,
+#                        sigma_terms = terms_all,
+#                        nu_terms = terms_all,
+#                        tau_terms = NULL,
+#                        n_crit = 200,
+#                        long = TRUE)
 ```
-
-** I edited the generate_gamlss_models function to handle longitudinal models, so this part is not needed anymore.
-read in the models generated above,
-save another version with the t1 phenotype added to the predictors (will produce 3 new models, with t1 phenotype added to mu, mu and sigma, mu and sigma and nu)
-save these new versions
-```{r}
-models_list_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2/"
-models_list <-  lapply(list.files(models_list_folder, pattern = "\\.rds$", full.names = TRUE),readRDS)
-
-for(n in 1:length(models_list)){
-model <- models_list[[n]]
-ph.t1 <- model$phenotype %>% gsub(".t2", ".t1", .)
-new_model_mu <- model
-new_model_mu$mu.formula <- as.formula(paste(deparse(model$mu.formula),"+", ph.t1))
-new_model_sigma <- model
-new_model_sigma$mu.formula <- as.formula(paste(deparse(model$mu.formula),"+", ph.t1))
-new_model_sigma$sigma.formula <- as.formula(paste(deparse(model$sigma.formula),"+", ph.t1))
-new_model_nu <- model
-new_model_nu$mu.formula <- as.formula(paste(deparse(model$mu.formula),"+", ph.t1))
-new_model_nu$sigma.formula <- as.formula(paste(deparse(model$sigma.formula),"+", ph.t1))
-new_model_nu$nu.formula <- as.formula(paste(deparse(model$nu.formula), "+",ph.t1))
-#save three new models
-mu_modelname <- paste("gamlss_model",
-                     "MU", paste0("~1", ".t1.", paste(labels(terms(model$mu.formula)), collapse = ".")),
-                     "SIGMA", paste("~1", paste(labels(terms(model$sigma.formula)), collapse = ".")),
-                     "NU", paste("~1", paste(labels(terms(model$nu.formula)), collapse = ".")),
-                    model$fam,
-                    model$phenotype, sep = "_")
-mu_filename <- paste0(models_list_folder,mu_modelname,".rds")
-saveRDS(new_model_mu, file = mu_filename)
-#
-sigma_modelname <- paste("gamlss_model",
-                     "MU", paste("~1", ".t1.",paste(labels(terms(model$mu.formula)), collapse = ".")),
-                     "SIGMA", paste("~1", ".t1.",paste(labels(terms(model$sigma.formula)), collapse = ".")),
-                     "NU", paste("~1", paste(labels(terms(model$nu.formula)), collapse = ".")),
-                    model$fam,
-                    model$phenotype, sep = "_")
-sigma_filename <- paste0(models_list_folder,sigma_modelname,".rds")
-saveRDS(new_model_sigma, file = sigma_filename)
-#
-nu_modelname <- paste("gamlss_model",
-                     "MU", paste("~1", ".t1.",paste(labels(terms(model$mu.formula)), collapse = ".")),
-                     "SIGMA", paste("~1", ".t1.",paste(labels(terms(model$sigma.formula)), collapse = ".")),
-                     "NU", paste("~1", ".t1.",paste(labels(terms(model$nu.formula)), collapse = ".")),
-                    model$fam,
-                    model$phenotype, sep = "_")
-nu_filename <- paste0(models_list_folder,nu_modelname,".rds")
-saveRDS(new_model_nu, file = nu_filename)
-#
-rm(model, ph.t1, new_model_mu, new_model_sigma, new_model_nu, mu_filename, sigma_filename, nu_filename, mu_modelname, sigma_modelname, nu_modelname)
-}
-
-```
-
 
 Run fits submitting an array job.
 With the specifications below:
@@ -179,22 +125,35 @@ sTwo_fits <- inspect_model_fits(splitTwo_folder, sTwo_fits_stats_filename)
 sTwo_not_converge <- sTwo_models[sapply(sTwo_models, function(x){x$converged == FALSE})]
 ```
 workaround because the above inspect_model_fits fct doesn't work with the longitudinal model outputs
+FIXED THE FUNCTION TO WORK with longitudinal models.
 ```{r}
-sOne_fits <- read.csv(sOne_fits_stats_filename)
-sOne_fits$modelFam <- paste(fits_stats$mu_formula, 
-                             fits_stats$sigma_formula, 
-                             fits_stats$nu_formula, 
-                             fits_stats$family_abbr, sep = "__")
-sOne_fits$phenotype <- as.character(lapply(sOne_fits$mu_formula, str_extract, pattern = ".*(?= ~)"))
+# sOne_fits <- read.csv(sOne_fits_stats_filename)
+# sOne_fits$modelFam <- paste(fits_stats$mu_formula, 
+#                              fits_stats$sigma_formula, 
+#                              fits_stats$nu_formula, 
+#                              fits_stats$family_abbr, sep = "__")
+# sOne_fits$phenotype <- as.character(lapply(sOne_fits$mu_formula, str_extract, pattern = ".*(?= ~)"))
 ```
 #BIC
+##get table of BIC within each phenotype
+-- adapt code from family selection notebook
+```{r}
+sOne_best <- sOne_fits %>%
+  group_by(phenotype) %>%
+  slice_min(BIC, n = 1)
+
+sTwo_best <- sTwo_fits %>%
+  group_by(phenotype) %>%
+  slice_min(BIC, n = 1)
+```
 ##BIC plots for each phenotype
 sOne
 ```{r}
-sOne_fits$ylabel <- paste("MU",gsub(".*~", "", sOne_fits$sigma_formula), "SIGMA", gsub(".*~", "", sOne_fits$sigma_formula), "NU", gsub(".*~", "", sOne_fits$nu_formula), sep = ".")
+sOne_fits$ylabel <- paste("MU",gsub(".*~", "", sOne_fits$mu_formula), "SIGMA", gsub(".*~", "", sOne_fits$sigma_formula), "NU", gsub(".*~", "", sOne_fits$nu_formula), sep = ".")
+sOne_fits_all <- sOne_fits
 
-sOne_fits <- sOne_fits %>% 
-  filter(!is.na(BIC)) %>%
+sOne_fits <- sOne_fits_all %>% 
+  filter(!is.na(BIC) & convergence_warn_end == FALSE) %>%
   group_by(phenotype) %>%
   mutate(scaled_log_BIC = log(BIC - min(BIC)))
 
@@ -208,7 +167,7 @@ BIC_WMV <-
   theme(axis.text.y = element_text(size = 6))
 
 BIC_GMV <- 
-  sOne_fits %>% filter(phenotype == "smri_vol_cdk_total") %>% 
+  sOne_fits %>% filter(phenotype == "smri_vol_cdk_total.t2") %>% 
   ggplot(., aes(x = scaled_log_BIC, y = ylabel)) + 
   geom_histogram(stat = "identity") + 
   ggtitle("cort GMV, all") + labs(x = "scaled log BIC", y = "Model") +
@@ -293,14 +252,52 @@ sTwo_BIC_wholeB <-
   theme(axis.text.y = element_text(size = 6))
 
 ```
-##get table of BIC within each phenotype
--- adapt code from family selection notebook
+##Predicting on test data
+predict centile scores for split TWO using model trained on split ONE
 ```{r}
-sOne_best <- sOne_fits %>%
-  group_by(phenotype) %>%
-  slice_min(BIC, n = 1)
+plot <- FALSE
 
-sTwo_best <- sTwo_fits %>%
-  group_by(phenotype) %>%
-  slice_min(BIC, n = 1)
+centiles_pred_one <- vector(mode = "list", length = dim(sOne_best)[1])
+centiles_pred_two <- vector(mode = "list", length = dim(sTwo_best)[1])
+
+for(i in 1:length(best_models_One)){
+#define models from split one and split two
+model_one <- best_models_One[[i]]
+model_two <- best_models_Two[[i]]
+
+#define labels for phenotypes based on name_mapping df
+title_one <- name_mapping$labels[name_mapping$variables == as.character(model_one$mu.formula[[2]])]
+title_two <- name_mapping$labels[name_mapping$variables == as.character(model_two$mu.formula[[2]])]
+stopifnot(title_one == title_two)
+
+#define original df from split one and two, with phenotypes from the current model
+og_df_one <- sOne_df %>% select(c("age", "sex", "nonSingleton", "site", model_one$mu.formula[[2]]))
+og_df_two <- sTwo_df %>% select(c("age", "sex", "nonSingleton", "site", model_two$mu.formula[[2]]))
+
+#calculate predicted centiles on sOne data using sOne and sTwo models
+sOne_centiles_1 <- pred_og_centile_EK(model_one, sOne_df)
+sOne_centiles_2 <- pred_og_centile_EK(model_two, og_df_two, new.data = sOne_df)
+centiles_pred_one[[i]] <- pred_og_centile(model_two, og_df_two, new.data = sOne_test_df)
+names(centiles_pred_one)[i] <- paste(title_one, "centiles", sep = "_")
+
+#calculate predicted centiles on sTwo data using sOne and sTwo models
+sTwo_centiles_1 <- pred_og_centile_EK(model_one, og_df_one, new.data = sTwo_df)
+sTwo_centiles_2 <- pred_og_centile_EK(model_two, sTwo_df)
+centiles_pred_two[[i]] <- pred_og_centile_EK(model_one, og_df_one, new.data = sTwo_test_df)
+names(centiles_pred_two)[i] <- paste(title_two, "centiles", sep = "_")
+
+if(plot == TRUE) {
+  #Plotting sOne and sTwo from two predictions
+  plot(sOne_centiles_1, sOne_centiles_2, main = paste0("split One: ", title_one) , ylab = "predictions from Model 1", xlab = "predictions from Model 2")
+  abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
+  plot(sTwo_centiles_1, sTwo_centiles_2, main = paste0("split Two: ", title_two) , ylab = "predictions from Model 1", xlab = "predictions from Model 2")
+  abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
+  }
+
+#Correlation coefficients
+cor_one <- cor.test(sOne_centiles_1, sOne_centiles_2)
+cor_two <- cor.test(sTwo_centiles_1, sTwo_centiles_2)
+print(paste0("Correlation Coefficient Split One, ", title_one, cor_one$estimate, " , ", cor_one$p.value))
+print(paste0("Correlation Coefficient Split Two, ", title_two, cor_two$estimate, " , ", cor_two$p.value))
+}
 ```
