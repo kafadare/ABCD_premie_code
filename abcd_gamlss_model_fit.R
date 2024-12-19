@@ -22,10 +22,10 @@ if (length(args) > 1) {
   #method <- args[6]
 }else{
   n = 1
-  models_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_linear"
-  data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_long_selectVars_NOdxfilter_famfilter2024-09-20.csv"
-  out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_allPhen/"
-  output_file <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_allPhen/gamlss_fits_stats_allPhen"
+  models_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_models_t1t2"
+  data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_t1t2_wide_sTwo_train.csv"
+  out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_long_global_TWO/"
+  output_file <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_long_global_TWO/gamlss_fits_stats"
   #method <- quote(CG)
 }
 
@@ -70,6 +70,8 @@ if (sum(names(df) %in% c("PCW_between_t1t2")) == 1){
   df <- df %>% 
     select(sex, age, site, nonSingleton, model$phenotype, PCW_between_t1t2, ph.t1) %>% 
     drop_na()
+  df[,model$phenotype] <- as.numeric(df[,model$phenotype])
+  df[,ph.t1] <- as.numeric(df[,ph.t1])
 } else {
   df <- df %>% 
     select(sex, age, site, nonSingleton, model$phenotype) %>% 
@@ -78,10 +80,19 @@ if (sum(names(df) %in% c("PCW_between_t1t2")) == 1){
 
 #modelname <- paste("gamlss_FIT",sub(".*/gamlss_model_(.*)", "\\1", model_name), sep = "__")
 #modelname <- paste("gamlssFIT", model$fam, model$phenotype, nonSingleton, sep = "__")
-modelname <- (paste("gamlssFIT", Reduce(paste, deparse(model$mu.formula)), 
-                    Reduce(paste,deparse(model$sigma.formula)),
-                    Reduce(paste,deparse(model$nu.formula)),
-                    model$fam, sep = "_"))
+  # mu.names <- Reduce(paste, deparse(model$mu.formula)) %>% sub(" [^ ]*\\.t1", " t1", .)
+  # sigma.names <- Reduce(paste,deparse(model$sigma.formula)) %>% sub(" [^ ]*\\.t1", " t1", .)
+  # nu.names <- Reduce(paste,deparse(model$nu.formula)) %>% sub(" [^ ]*\\.t1", " t1", .)
+
+  modelname <- (paste("gamlssFIT", n, sep = "_"))
+# modelname <- (paste("gamlssFIT", mu.names, 
+#                     sigma.names,
+#                     nu.names,
+#                     model$fam, sep = "_"))
+# modelname <- (paste("gamlssFIT", Reduce(paste, deparse(model$mu.formula)), 
+#                     Reduce(paste,deparse(model$sigma.formula)),
+#                     Reduce(paste,deparse(model$nu.formula)),
+#                     model$fam, sep = "_"))
 
 gamlss <- gamlss (formula = model$mu.formula,
                   sigma.formula = model$sigma.formula,
