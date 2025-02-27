@@ -21,6 +21,7 @@ output_list <-  list.files(fits_output_folder, pattern = "\\.txt$", full.names =
 fits_outputs <- as.data.frame(do.call(rbind, lapply(output_list, read_file))) %>% rename(., text = V1)
 #fits_outputs$model <- lapply(fits_outputs$text, str_extract, pattern = "\\[1\\].*") %>% 
 #sub("\\[1\\] \\\"","",.) %>% sub("__.*", "", .)
+fits_outputs$model_index <- sapply(output_list, function(x) sub(".*?(\\d+)_output\\.txt$", "\\1", x))
 fits_outputs$mu_formula <- lapply(fits_outputs$text, str_extract, pattern = "(?<=mu_formula:).*") %>% 
   gsub('[\\"\\\\]','',.)
 fits_outputs$sigma_formula <- lapply(fits_outputs$text, str_extract, pattern = "(?<=sigma_formula:).*")%>% 
@@ -70,7 +71,8 @@ print(paste0("Number of models that have not saved but do NOT have error: ", len
 ##Save output file that has been constructed with errors and warnings and separate file with error fits
 if(save == TRUE){
 write.csv(fits_outputs, paste0(folder,"fits_outputs.csv"), row.names = F)
-write.csv(error_fits, paste0(folder, "errors_fits.csv"), row.names = F)}
+write.csv(error_fits, paste0(folder, "errors_fits.csv"), row.names = F)
+}
 
 #merge fits_stats with fits_outputs
 fits <- merge(fits_stats, fits_outputs, by = c("mu_formula", 
