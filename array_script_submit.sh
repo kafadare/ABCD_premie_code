@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH -t 0-8:00
 
 SUBMIT_SCRIPT=$1
 FOLDER_NAME=$2
@@ -11,7 +12,7 @@ OUTPUT_FILENAME=$6
 
 NO_FILES=$(ls -1 "$FOLDER_NAME"| wc -l)
 
-#NO_FILES=2
+#NO_FILES=10
 
 
 
@@ -24,7 +25,7 @@ sleep 1
 #Waiting for all jobs to finish to concatanate output files
 while squeue --job "$job_array_id" | grep -q "R\| PD"; do
   echo "Waiting for job array $job_array_id to finish."
-  sleep 60
+  sleep 30
 done
 
 echo "All jobs in array have completed. Proceeding with concatanating the output files."
