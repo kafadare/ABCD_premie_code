@@ -1,4 +1,9 @@
 ## File of useful functions to load at top of script
+z_score <- function(X){
+  X_mean <- mean(X, na.rm = TRUE)
+  S <- sd(X, na.rm = TRUE)
+  return((X-X_mean)/S)
+}
 
 find_diff_cols <- function(X) {
   replicate(nrow(X), names(
