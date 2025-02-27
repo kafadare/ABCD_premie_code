@@ -103,3 +103,25 @@ pred_og_centile_EK <- function(gamlssModel, og.data, get.zscores = FALSE, new.da
   }
 }
 
+cent_cdf_EK <- function (gamlssModel, df, group = NULL, interval_var = NULL, 
+          ...) 
+{
+  df$centile <- pred_og_centile_EK(gamlssModel, df)
+  
+  if (!is.null(group) && is.numeric(df[[group]])) {
+    df[[group]] <- as.factor(df[[group]])
+  }
+  if (!is.null(interval_var)) {
+    df$Interval <- cut_interval(df[[interval_var]], ...)
+    df <- df %>% group_by(Interval)
+  }
+  df %>% summarise(`1%` = round(sum(centile <= 0.01)/n(), digits = 3), 
+                   `5%` = round(sum(centile <= 0.05)/n(), digits = 3), `10%` = round(sum(centile <= 
+                                                                                           0.1)/n(), digits = 3), `25%` = round(sum(centile <= 
+                                                                                                                                      0.25)/n(), digits = 3), `50%` = round(sum(centile <= 
+                                                                                                                                                                                  0.5)/n(), digits = 3), `75%` = round(sum(centile <= 
+                                                                                                                                                                                                                             0.75)/n(), digits = 3), `90%` = round(sum(centile <= 
+                                                                                                                                                                                                                                                                         0.9)/n(), digits = 3), `95%` = round(sum(centile <= 
+                                                                                                                                                                                                                                                                                                                    0.95)/n(), digits = 3), `99%` = round(sum(centile <= 
+                                                                                                                                                                                                                                                                                                                                                                0.99)/n(), digits = 3), .by = !!group)
+}
