@@ -40,7 +40,7 @@ df_model <- df %>%
 #Fitting models
 ```{r}
 gamlss_gg <- gamlss (formula = as.formula("smri_vol_scs_allventricles ~ 1 + age + sex + random(site) + nonSingleton"),
-                  sigma.formula = as.formula("smri_vol_scs_allventricles ~ 1 + age + sex + random(site) + nonSingleton"),
+                  sigma.formula = as.formula("smri_vol_scs_allventricles ~ 1 + random(site)"),
                   nu.formula = as.formula("~1"),
                   #tau.formula = as.formula ("~1 + age"),
                   family = "GG",
