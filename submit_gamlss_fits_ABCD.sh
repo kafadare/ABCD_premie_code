@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=ABCD_global_long_One
-#SBATCH --output=/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_long_global_ONE/out_messages/%x_%A_%a_output.txt
+#SBATCH --job-name=ABCD_t2_all_One
+#SBATCH --output=/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_t2_all_ONE/out_messages/%x_%A_%a_output.txt
 #SBATCH --time=04:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
