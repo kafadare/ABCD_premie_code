@@ -1,0 +1,3280 @@
+---
+title: "t1_results_newMC"
+author: "Eren Kafadar"
+date: "2025-03-26"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+```{r setup, include=FALSE}
+diagnostics <- FALSE
+generate <- FALSE
+save_tables <- FALSE
+knitr::opts_chunk$set(echo = TRUE)
+#Load libraries
+library(dplyr)
+library(magrittr)
+library(readr)
+library(stringr)
+library(gamlss) #to fit model
+require(gamlss.ggplots)
+library(splines)
+library(tidyr)
+library(gamlssTools) #Margaret's package
+#For figures/plotting
+library(ggplot2)
+library(gridExtra)
+library(ggsegDKT)
+library(ggseg)
+library(ggcorrplot)
+library(interactions)
+library(growthstandards)
+
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/inspect_model_fits.R")
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/gamlss_functions_EK.R")
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/data_functions.R")
+
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/pred_og_centile_EK.R")
+
+#df to map variable names onto names displayed on figures
+name_mapping <- data.frame(
+  abbreviation = c(
+     "smri_vol_cdk_totallh", "smri_vol_cdk_totalrh", "smri_vol_cdk_total",   
+     "totalWM_cb", "totalWM_crb", "totalGM_crb",
+     
+    "smri_vol_scs_cbwmatterlh", "smri_vol_scs_ltventriclelh", "smri_vol_scs_inflatventlh",
+    "smri_vol_scs_crbwmatterlh", "smri_vol_scs_crbcortexlh", "smri_vol_scs_tplh",
+    "smri_vol_scs_caudatelh", "smri_vol_scs_putamenlh", "smri_vol_scs_pallidumlh",
+    "smri_vol_scs_3rdventricle", "smri_vol_scs_4thventricle", "smri_vol_scs_bstem",
+    "smri_vol_scs_hpuslh", "smri_vol_scs_amygdalalh", "smri_vol_scs_csf",
+    "smri_vol_scs_lesionlh", "smri_vol_scs_aal", "smri_vol_scs_vedclh",
+    
+    "smri_vol_scs_cbwmatterrh", "smri_vol_scs_ltventriclerh", "smri_vol_scs_inflatventrh",
+    "smri_vol_scs_crbwmatterrh", "smri_vol_scs_crbcortexrh", "smri_vol_scs_tprh",
+    "smri_vol_scs_caudaterh", "smri_vol_scs_putamenrh", "smri_vol_scs_pallidumrh",
+    "smri_vol_scs_hpusrh", "smri_vol_scs_amygdalarh", "smri_vol_scs_lesionrh",
+    "smri_vol_scs_aar", "smri_vol_scs_vedcrh", 
+    
+    "smri_vol_scs_wmhint",
+    "smri_vol_scs_wmhintlh", "smri_vol_scs_wmhintrh", 
+    
+    "smri_vol_scs_ccps",
+    "smri_vol_scs_ccmidps", "smri_vol_scs_ccct", "smri_vol_scs_ccmidat",
+    "smri_vol_scs_ccat", 
+    
+    "smri_vol_scs_wholeb", "smri_vol_scs_latventricles",
+    "smri_vol_scs_allventricles", "smri_vol_scs_intracranialv", "smri_vol_scs_suprateialv",
+    "smri_vol_scs_subcorticalgv",
+    
+    "smri_vol_cdk_banksstslh", "smri_vol_cdk_cdacatelh", "smri_vol_cdk_cdmdfrlh",
+    "smri_vol_cdk_cuneuslh", "smri_vol_cdk_ehinallh", "smri_vol_cdk_fusiformlh",
+    "smri_vol_cdk_ifpllh", "smri_vol_cdk_iftmlh", "smri_vol_cdk_ihcatelh",
+    "smri_vol_cdk_locclh", "smri_vol_cdk_lobfrlh", "smri_vol_cdk_linguallh",
+    "smri_vol_cdk_mobfrlh", "smri_vol_cdk_mdtmlh", "smri_vol_cdk_parahpallh",
+    "smri_vol_cdk_paracnlh", "smri_vol_cdk_parsopclh", "smri_vol_cdk_parsobislh",
+    "smri_vol_cdk_parstgrislh", "smri_vol_cdk_pericclh", "smri_vol_cdk_postcnlh",
+    "smri_vol_cdk_ptcatelh", "smri_vol_cdk_precnlh", "smri_vol_cdk_pclh",
+    "smri_vol_cdk_rracatelh", "smri_vol_cdk_rrmdfrlh", "smri_vol_cdk_sufrlh",
+    "smri_vol_cdk_supllh", "smri_vol_cdk_sutmlh", "smri_vol_cdk_smlh",
+    "smri_vol_cdk_frpolelh", "smri_vol_cdk_tmpolelh", "smri_vol_cdk_trvtmlh",
+    "smri_vol_cdk_insulalh",
+    
+     "smri_vol_cdk_banksstsrh", "smri_vol_cdk_cdacaterh", "smri_vol_cdk_cdmdfrrh",
+    "smri_vol_cdk_cuneusrh", "smri_vol_cdk_ehinalrh", "smri_vol_cdk_fusiformrh",
+    "smri_vol_cdk_ifplrh", "smri_vol_cdk_iftmrh", "smri_vol_cdk_ihcaterh",
+    "smri_vol_cdk_loccrh", "smri_vol_cdk_lobfrrh", "smri_vol_cdk_lingualrh",
+    "smri_vol_cdk_mobfrrh", "smri_vol_cdk_mdtmrh", "smri_vol_cdk_parahpalrh",
+    "smri_vol_cdk_paracnrh", "smri_vol_cdk_parsopcrh", "smri_vol_cdk_parsobisrh",
+    "smri_vol_cdk_parstgrisrh", "smri_vol_cdk_periccrh", "smri_vol_cdk_postcnrh",
+    "smri_vol_cdk_ptcaterh", "smri_vol_cdk_precnrh", "smri_vol_cdk_pcrh",
+    "smri_vol_cdk_rracaterh", "smri_vol_cdk_rrmdfrrh", "smri_vol_cdk_sufrrh",
+    "smri_vol_cdk_suplrh", "smri_vol_cdk_sutmrh", "smri_vol_cdk_smrh",
+    "smri_vol_cdk_frpolerh", "smri_vol_cdk_tmpolerh", "smri_vol_cdk_trvtmrh",
+    "smri_vol_cdk_insularh"
+  ),
+  region_name = c(
+    "Left-Cerebral_Cortex", "Right-Cerebral-Cortex", "Total-Cerebral-Cortex",
+    "Total_Cerebral-WM", "Total_Cerebellum-WM", "Total-Cerebellum-Cortex",
+    
+    "Left-Cerebral-White-Matter", "Left-Lateral-Ventricle", "Left-Inf-Lat-Vent",
+    "Left-Cerebellum-White-Matter", "Left-Cerebellum-Cortex", "Left-Thalamus-Proper",
+    "Left-Caudate", "Left-Putamen", "Left-Pallidum",
+    "x3rd-ventricle", "x4th-ventricle", "Brain-Stem",
+    "Left-Hippocampus", "Left-Amygdala", "Cerebrospinal-Fluid",
+    "Left-Lesion", "Left-Accumbens-Area", "Left-VentralDC",
+    
+   "Right-Cerebral-White-Matter", "Right-Lateral-Ventricle", "Right-Inf-Lat-Vent",
+    "Right-Cerebellum-White-Matter", "Right-Cerebellum-Cortex", "Right-Thalamus-Proper",
+    "Right-Caudate", "Right-Putamen", "Right-Pallidum",
+    "Right-Hippocampus", "Right-Amygdala",
+    "Right-Lesion", "Right-Accumbens-Area", "Right-VentralDC",
+    
+    "WM-Hypointensities","Left-WM-Hypointensities", "Right-WM-Hypointensities",
+   
+   "CC_Posterior","CC_Mid_Posterior", "CC_Central", "CC_Mid_Anterior",
+    "CC_Anterior", 
+   
+   "WholeBrain", "LatVentricles","AllVentricles", "IntracranialVolume", 
+   "SupratentorialVolume", "SubcorticalGrayVolume",
+   
+     "lh_bankssts", "lh_caudalanteriorcingulate", "lh_caudalmiddlefrontal",
+    "lh_cuneus", "lh_entorhinal", "lh_fusiform",
+    "lh_inferiorparietal", "lh_inferiortemporal", "lh_isthmuscingulate",
+    "lh_lateraloccipital", "lh_lateralorbitofrontal", "lh_lingual",
+    "lh_medialorbitofrontal", "lh_middletemporal", "lh_parahippocampal",
+    "lh_paracentral", "lh_parsopercularis", "lh_parsorbitalis",
+    "lh_parstriangularis", "lh_pericalcarine", "lh_postcentral",
+    "lh_posteriorcingulate", "lh_precentral", "lh_precuneus", "lh_rostralanteriorcingulate",
+    "lh_rostralmiddlefrontal", "lh_superiorfrontal", "lh_superiorparietal",
+    "lh_superiortemporal", "lh_supramarginal", "lh_frontalpole",
+    "lh_temporalpole", "lh_transversetemporal", "lh_insula",
+   
+     "rh_bankssts", "rh_caudalanteriorcingulate", "rh_caudalmiddlefrontal",
+    "rh_cuneus", "rh_entorhinal", "rh_fusiform",
+    "rh_inferiorparietal", "rh_inferiortemporal", "rh_isthmuscingulate",
+    "rh_lateraloccipital", "rh_lateralorbitofrontal", "rh_lingual",
+    "rh_medialorbitofrontal", "rh_middletemporal", "rh_parahippocampal",
+    "rh_paracentral", "rh_parsopercularis", "rh_parsorbitalis",
+    "rh_parstriangularis", "rh_pericalcarine", "rh_postcentral",
+    "rh_posteriorcingulate", "rh_precentral", "rh_precuneus", "rh_rostralanteriorcingulate",
+    "rh_rostralmiddlefrontal", "rh_superiorfrontal", "rh_superiorparietal",
+    "rh_superiortemporal", "rh_supramarginal", "rh_frontalpole",
+    "rh_temporalpole", "rh_transversetemporal", "rh_insula"
+    )
+)
+
+phenotypes_for_MC <- c(
+   "smri_vol_scs_cbwmatterlh", "smri_vol_scs_ltventriclelh", "smri_vol_scs_inflatventlh",
+    "smri_vol_scs_crbwmatterlh", "smri_vol_scs_crbcortexlh", "smri_vol_scs_tplh",
+    "smri_vol_scs_caudatelh", "smri_vol_scs_putamenlh", "smri_vol_scs_pallidumlh",
+    "smri_vol_scs_3rdventricle", "smri_vol_scs_4thventricle", "smri_vol_scs_bstem",
+    "smri_vol_scs_hpuslh", "smri_vol_scs_amygdalalh", "smri_vol_scs_aal", "smri_vol_scs_vedclh",
+    
+    "smri_vol_scs_cbwmatterrh", "smri_vol_scs_ltventriclerh", "smri_vol_scs_inflatventrh",
+    "smri_vol_scs_crbwmatterrh", "smri_vol_scs_crbcortexrh", "smri_vol_scs_tprh",
+    "smri_vol_scs_caudaterh", "smri_vol_scs_putamenrh", "smri_vol_scs_pallidumrh",
+    "smri_vol_scs_hpusrh", "smri_vol_scs_amygdalarh",
+    "smri_vol_scs_aar", "smri_vol_scs_vedcrh", 
+    
+    "smri_vol_scs_ccps",
+    "smri_vol_scs_ccmidps", "smri_vol_scs_ccct", "smri_vol_scs_ccmidat",
+    "smri_vol_scs_ccat",
+    
+    "smri_vol_cdk_banksstslh", "smri_vol_cdk_cdacatelh", "smri_vol_cdk_cdmdfrlh",
+    "smri_vol_cdk_cuneuslh", "smri_vol_cdk_ehinallh", "smri_vol_cdk_fusiformlh",
+    "smri_vol_cdk_ifpllh", "smri_vol_cdk_iftmlh", "smri_vol_cdk_ihcatelh",
+    "smri_vol_cdk_locclh", "smri_vol_cdk_lobfrlh", "smri_vol_cdk_linguallh",
+    "smri_vol_cdk_mobfrlh", "smri_vol_cdk_mdtmlh", "smri_vol_cdk_parahpallh",
+    "smri_vol_cdk_paracnlh", "smri_vol_cdk_parsopclh", "smri_vol_cdk_parsobislh",
+    "smri_vol_cdk_parstgrislh", "smri_vol_cdk_pericclh", "smri_vol_cdk_postcnlh",
+    "smri_vol_cdk_ptcatelh", "smri_vol_cdk_precnlh", "smri_vol_cdk_pclh",
+    "smri_vol_cdk_rracatelh", "smri_vol_cdk_rrmdfrlh", "smri_vol_cdk_sufrlh",
+    "smri_vol_cdk_supllh", "smri_vol_cdk_sutmlh", "smri_vol_cdk_smlh",
+    "smri_vol_cdk_frpolelh", "smri_vol_cdk_tmpolelh", "smri_vol_cdk_trvtmlh",
+    "smri_vol_cdk_insulalh",
+    
+     "smri_vol_cdk_banksstsrh", "smri_vol_cdk_cdacaterh", "smri_vol_cdk_cdmdfrrh",
+    "smri_vol_cdk_cuneusrh", "smri_vol_cdk_ehinalrh", "smri_vol_cdk_fusiformrh",
+    "smri_vol_cdk_ifplrh", "smri_vol_cdk_iftmrh", "smri_vol_cdk_ihcaterh",
+    "smri_vol_cdk_loccrh", "smri_vol_cdk_lobfrrh", "smri_vol_cdk_lingualrh",
+    "smri_vol_cdk_mobfrrh", "smri_vol_cdk_mdtmrh", "smri_vol_cdk_parahpalrh",
+    "smri_vol_cdk_paracnrh", "smri_vol_cdk_parsopcrh", "smri_vol_cdk_parsobisrh",
+    "smri_vol_cdk_parstgrisrh", "smri_vol_cdk_periccrh", "smri_vol_cdk_postcnrh",
+    "smri_vol_cdk_ptcaterh", "smri_vol_cdk_precnrh", "smri_vol_cdk_pcrh",
+    "smri_vol_cdk_rracaterh", "smri_vol_cdk_rrmdfrrh", "smri_vol_cdk_sufrrh",
+    "smri_vol_cdk_suplrh", "smri_vol_cdk_sutmrh", "smri_vol_cdk_smrh",
+    "smri_vol_cdk_frpolerh", "smri_vol_cdk_tmpolerh", "smri_vol_cdk_trvtmrh",
+    "smri_vol_cdk_insularh"
+  )
+
+global_phenotypes <- c("smri_vol_cdk_total", "totalWM_cb", "smri_vol_scs_allventricles", "smri_vol_scs_subcorticalgv")
+
+```
+#SETUP-data
+##Define files
+```{r}
+#file paths
+splitOne_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_regional_ONE/"
+splitTwo_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/gamlss_fits_regional_TWO/"
+
+splitOne_data_filename <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTrainOne_selectVars_famfilter2024-11-26.csv"
+splitTwo_data_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTrainTwo_selectVars_famfilter2024-11-26.csv"
+
+splitOne_test_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTestOne_selectVars_famfilter2024-11-26.csv"
+splitTwo_test_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd_baseline_matchedTestTwo_selectVars_famfilter2024-11-26.csv"
+
+phenotype_set <- readRDS("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/phenotype_set.rds")
+
+reg_centiles_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Centile_CSVs/regional_baseline_volume_centiles.csv"
+global_centiles_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Centile_CSVs/global_baseline_volume_centiles.csv"
+```
+## Load data frames and clean them up
+```{r}
+#define the distribution family and phenotype and whether nonSingleton variable is there to define file name.
+#rename some of the variables and select baseline scans
+rename_vec <- c(age = "PCW_at_scan", sex = "sex_baseline", site = "site_id_l", nonSingleton = "nonSingleton")
+
+#read in the dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sOne_df <- read.csv(splitOne_data_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))#4512 folks
+sOne_df$sex <- as.factor(sOne_df$sex)
+sOne_df$site <- as.factor(sOne_df$site)
+sOne_df$nonSingleton <- as.factor(sOne_df$nonSingleton)
+sOne_df$age <- as.numeric(sOne_df$age)
+
+#read in the dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sTwo_df <- read.csv(splitTwo_data_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))
+sTwo_df$sex <- as.factor(sTwo_df$sex)
+sTwo_df$site <- as.factor(sTwo_df$site)
+sTwo_df$nonSingleton <- as.factor(sTwo_df$nonSingleton)
+sTwo_df$age <- as.numeric(sTwo_df$age)
+
+#read in the test dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sOne_test_df <- read.csv(splitOne_test_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))
+sOne_test_df$sex <- as.factor(sOne_test_df$sex)
+sOne_test_df$site <- as.factor(sOne_test_df$site)
+sOne_test_df$nonSingleton <- as.factor(sOne_test_df$nonSingleton)
+sOne_test_df$age <- as.numeric(sOne_test_df$age)
+
+#read in the test dataframes and set variable types, remove NAs in age nonSingleton and sex not M or F.
+sTwo_test_df <- read.csv(splitTwo_test_filename)  %>% select(-1) %>% rename(., all_of(rename_vec)) %>% 
+  subset(eventname == "baseline_year_1_arm_1" & !is.na(age) & !is.na(nonSingleton) & (sex %in% c("M", "F")))
+sTwo_test_df$sex <- as.factor(sTwo_test_df$sex)
+sTwo_test_df$site <- as.factor(sTwo_test_df$site)
+sTwo_test_df$nonSingleton <- as.factor(sTwo_test_df$nonSingleton)
+sTwo_test_df$age <- as.numeric(sTwo_test_df$age)
+
+centiles_reg <- read.csv(reg_centiles_filename)  %>% select(-1)
+centiles_global <- read.csv(global_centiles_filename)  %>% select(-1)
+centiles_all <- merge(centiles_reg, centiles_global, by = c("src_subject_id", "split_ID"))
+rm(centiles_reg, centiles_global)
+full_test_df <- rbind(sOne_test_df,sTwo_test_df)
+full_test_df <- merge(centiles_all, full_test_df, by = "src_subject_id")
+```
+#Analyses
+##Save scale image
+```{r}
+library(ggplot2)
+
+# Create dummy data just to generate the colorbar
+df <- data.frame(x = 1, y = 1, beta = 0)  # value within the -0.2 to 0.2 range
+
+ggplot(df, aes(x, y, fill = beta)) +
+  geom_tile() +
+  scale_fill_gradient2(
+    low = "red",
+    mid = "white",
+    high = "blue",
+    midpoint = 0,
+    limits = c(-0.2, 0.2),
+    guide = guide_colorbar(
+      barwidth = 20,   # length of colorbar
+      barheight = 1    # thickness
+    )
+  ) +
+  theme_void() +  # remove axes, grid, etc.
+  theme(
+    legend.position = "bottom"
+  )
+```
+##Merge data
+Get PRS, neonatal complications, birthweight in the same data tables
+scrn_birthcomp - any birth complications for >1 month hospitalization?
+birth_weight_lbs - birth weight in pounds?
+full_abcd
+  race_ethinicity variable (to check PRS calculated sample)
+  1 - White, 2 - Black, 3 - Hispanic, 4 - Asian, 5 - Other
+```{r}
+filename_fullfile <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1/abcd5.1_long_full_2024-10-04.csv"
+filename_prs <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/abcd_clean.csv"
+filename_psych1 <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/abcd_longitudinal_psychopathology_factors_scores_full_sample.csv"
+filename_psych2 <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/psy_var.RData"
+filename_anthro_vars <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/raw_tables_5.1/ph_y_anthro.csv"
+full_abcd <- read.csv(filename_fullfile) %>% select(-1) %>% filter(eventname == "baseline_year_1_arm_1")
+abcd_prs <- read.csv(filename_prs)
+abcd_psych <- read.csv(filename_psych1)
+load(filename_psych2)
+abcd_anthro <- read.csv(filename_anthro_vars)
+
+#Get composite variable for neonatal complications
+neonatal_vars <- c("devhx_14a3_p", "devhx_14b3_p", "devhx_14c3_p", "devhx_14d3_p", "devhx_14e3_p", "devhx_14f3_p", "devhx_14g3_p", "devhx_14h3_p")
+#4 rows NAs initially (presumably did not respond to the question)
+full_abcd[neonatal_vars] <- lapply(full_abcd[neonatal_vars], function(x) replace(x, x==999, NA))
+full_abcd$neonatal_comp_total <- rowSums(full_abcd[neonatal_vars], na.rm = TRUE)
+
+#Regress out the first ten PCs from the PRS scores
+model_bw <- lm(bw_pgs ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data = abcd_prs)
+model_ga <- lm(ga_pgs ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10, data = abcd_prs)
+abcd_prs$bw_pgs_resd <- model_bw$residuals
+abcd_prs$ga_pgs_resd <- model_ga$residuals
+ten_PCs <- paste0("PC", 1:10)
+
+#Match participant names to other dataframes for merge
+abcd_prs$participant <- sub("sub-NDAR", "NDAR_", abcd_prs$participant)
+
+#Merge dataframes
+test <- merge(full_test_df, full_abcd[,c("scrn_birthcomp","birth_weight_lbs", "birth_weight_oz", "neonatal_comp_total","race_ethnicity", "src_subject_id")], by = c("src_subject_id"), all.x = TRUE)
+
+test <- merge(test, abcd_psych %>% filter(eventname == 1) %>% select(-c("rel_family_id", "interview_age", "eventname")), by = c("src_subject_id"), all.x = TRUE)
+
+test <- merge(test, psy %>% select (-c("age", "sex")), by.x = "src_subject_id", by.y = "IID", all.x = TRUE)
+
+test <- merge(test, abcd_anthro %>% filter(eventname == "baseline_year_1_arm_1"), by = c("src_subject_id"), all.x = TRUE)
+
+test_prs <- merge(test, abcd_prs[,c("bw_pgs", "ga_pgs","ga_pgs_resd", "bw_pgs_resd", "bw", ten_PCs, "participant")], by.x = "src_subject_id", by.y = "participant", all.x = TRUE)
+test_prs$birth_weight_sum_oz <- test_prs$birth_weight_lbs*16 + test_prs$birth_weight_oz
+
+#convert birthweight into percentiles using the gitHub growthstandards package which use the intergrowth charts
+test_prs <- test_prs %>%
+  mutate(birth_weight_kg = birth_weight_sum_oz * 0.0283495) %>%
+  mutate(gestAge_days = gestAge*7+3) %>%
+  mutate(sexLong = recode(sex, "M" = "Male", "F" = "Female"))
+
+test_prs$bweight_percentile <- igb_wtkg2centile(test_prs$gestAge_days, test_prs$birth_weight_kg, sex = test_prs$sexLong)/100
+
+test_prs$bw_category <- ifelse(test_prs$bweight_percentile < 0.10, "SGA", ifelse(test_prs$bweight_percentile > 0.90, "LGA", "AGA"))
+```
+##Inter-variable correlations
+```{r}
+#correlation matrix and visualization
+cor_matrix <- cor(test_prs[,c("gestAge", "bw", "bweight_percentile", "neonatal_comp_total", "ga_pgs", "bw_pgs", "General_p")], use = "pairwise.complete.obs")
+p_mat <- cor_pmat(test_prs[,c("gestAge", "bw", "bweight_percentile", "neonatal_comp_total", "ga_pgs", "bw_pgs", "General_p")])
+
+ggcorrplot(
+  cor_matrix,
+  p.mat = p_mat,
+  type = "lower",
+  insig = "blank",
+  lab = TRUE
+)
+#Fewer Variables
+new_df <- test_prs %>% rename(Gestational_Age = gestAge, Total_Neonatal_Comp = neonatal_comp_total, P_factor = General_p, Birthweight = bw)
+cor_matrix <- cor(new_df[,c("Gestational_Age", "Birthweight", "Total_Neonatal_Comp", "P_factor")], use = "pairwise.complete.obs")
+p_mat <- cor_pmat(new_df[,c("Gestational_Age", "Birthweight", "Total_Neonatal_Comp", "P_factor")])
+
+ggcorrplot(
+  cor_matrix,
+  p.mat = p_mat,
+  type = "lower",
+  insig = "blank",
+  lab = TRUE
+)
+```
+
+##Correlations with centile scores
+###Gestational Age
+```{r}
+sum(!is.na(test_prs$gestAge))
+ga_zscore <- z_score(test_prs$gestAge)
+
+#Global phenotypes
+reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], ga_se = summary$coefficients[2,2])
+})))
+
+reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(reg_table_global)), name_mapping$abbreviation)]
+
+reg_table_global_sig <- reg_table_global %>% filter(ga_p < 0.05)
+reg_table_global$ga_p_adj <- p.adjust(reg_table_global$ga_p, method = "BH")
+reg_table_global_sig_MC <- reg_table_global %>% filter(ga_p_adj < 0.05)
+
+reg_table_global_sig_MC
+
+#Regional phenotypes
+reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], ga_se = summary$coefficients[2,2])
+})))
+
+reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(reg_table_full)), name_mapping$abbreviation)]
+
+reg_table_full_sig <- reg_table_full %>% filter(ga_p < 0.05)
+reg_table_full$ga_p_adj <- p.adjust(reg_table_full$ga_p, method = "BH")
+reg_table_full_sig_MC <- reg_table_full %>% filter(ga_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_gestAge_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_gestAge_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+####visualization of betas on surface maps
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+reg_table_full_sig_MC[!(reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+#Setting manual limits (could match the colorbar limits between different variables)
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void()+
+  labs(title = "Gestational Age") + 
+  theme (plot.title = element_text(hjust = 0.5, size = 20))
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Gestational Age") + 
+  theme (plot.title = element_text(hjust = 0.5, size = 20))
+```
+###birth weight - storing models in list to compare linear and non-linear across phenotypes
+```{r}
+sum(!is.na(test_prs$birth_weight_sum_oz))
+df <- as.data.frame(test_prs[,"src_subject_id"])
+df$bw_zscore <- z_score(test_prs$birth_weight_sum_oz)
+
+#Global models save
+bw_global_models_list <- lapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  df$x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore, data = df)
+})
+  
+#Global phenotypes -- save betas and p-values
+bw_reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  df$x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore, data = df)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4], bw_se = summary$coefficients[2,2])
+})))
+
+bw_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_reg_table_global)), name_mapping$abbreviation)]
+
+bw_reg_table_global_sig <- bw_reg_table_global %>% filter(bw_p < 0.05)
+bw_reg_table_global$bw_p_adj <- p.adjust(bw_reg_table_global$bw_p, method = "BH")
+bw_reg_table_global_sig_MC <- bw_reg_table_global %>% filter(bw_p_adj < 0.05)
+
+bw_reg_table_global_sig_MC
+
+#Regional models save
+bw_regional_models_list <- lapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  df$x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore, data = df)
+})
+
+#Regional phenotypes -- save betas and p-values
+bw_reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  df$x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore, data = df)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4], bw_se = summary$coefficients[2,2])
+})))
+
+bw_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_reg_table_full)), name_mapping$abbreviation)]
+
+bw_reg_table_full_sig <- bw_reg_table_full %>% filter(bw_p < 0.05)
+bw_reg_table_full$bw_p_adj <- p.adjust(bw_reg_table_full$bw_p, method = "BH")
+bw_reg_table_full_sig_MC <- bw_reg_table_full %>% filter(bw_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- bw_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+####visualize on surface
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(bw_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bw_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+bw_reg_table_full_sig_MC[!(bw_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bw_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW")
+```
+####non-linear relationship with birthweight
+```{r}
+sum(!is.na(test_prs$birth_weight_sum_oz))
+df <- as.data.frame(test_prs[,"src_subject_id"])
+df$bw_zscore <- z_score(test_prs$birth_weight_sum_oz)
+
+#Global non-linear models save
+NLbw_global_models_list <- lapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  df$x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ns(bw_zscore,3), data = df)
+})
+
+#Regional non-linear models save
+NLbw_regional_models_list <- lapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  df$x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ns(bw_zscore,3), data = df)
+})
+```
+
+####visualize the nonlinear models
+```{r}
+##Visualize global models
+#Predict on new data
+for (i in 1:length(NLbw_global_models_list)){
+model <- NLbw_global_models_list[[i]]
+x <- test_prs[,names(NLbw_global_models_list)[i]]
+df$x_zscore <- qnorm(x)
+new_data <- data.frame(bw_zscore = seq(min(df$bw_zscore, na.rm = TRUE), max(df$bw_zscore, na.rm = TRUE), length.out = 100))
+new_data$y_pred <- predict(model, newdata = new_data)
+
+#Plot
+title <-  as.character(name_mapping$region_name[match(sub("_centiles", "", names(NLbw_global_models_list)[i]), name_mapping$abbreviation)])
+p <- ggplot(df, aes(bw_zscore, x_zscore)) +
+  geom_point() +
+  geom_line(data = new_data, aes(bw_zscore, y_pred), color = "blue", linewidth = 1) + ggtitle(title)
+print(p)
+}
+
+##Visualize regional models
+#Predict on new data
+for (i in 1:length(NLbw_regional_models_list)){
+model <- NLbw_regional_models_list[[i]]
+x <- test_prs[,names(NLbw_regional_models_list)[i]]
+df$x_zscore <- qnorm(x)
+new_data <- data.frame(bw_zscore = seq(min(df$bw_zscore, na.rm = TRUE), max(df$bw_zscore, na.rm = TRUE), length.out = 100))
+new_data$y_pred <- predict(model, newdata = new_data)
+
+#Plot
+title <-  as.character(name_mapping$region_name[match(sub("_centiles", "", names(NLbw_regional_models_list)[i]), name_mapping$abbreviation)])
+p <- ggplot(df, aes(bw_zscore, x_zscore)) +
+  geom_point() +
+  geom_line(data = new_data, aes(bw_zscore, y_pred), color = "blue", linewidth = 1) + ggtitle(title)
+print(p)
+}
+```
+####Compare linear and non-linear models
+```{r}
+length_total <- length(NLbw_global_models_list) + length(NLbw_regional_models_list)
+bw_modelcompare <- data.frame(label = rep(NA, length_total), phenotype = rep(NA, length_total), pr = rep(NA, length_total))
+
+for(i in 1:length(NLbw_global_models_list)){
+ bw_modelcompare$label[i] <- as.character(name_mapping$region_name[match(sub("_centiles", "",names(NLbw_global_models_list)[i]), name_mapping$abbreviation)])
+ bw_modelcompare$phenotype[i] <- names(NLbw_global_models_list)[i]
+  modelNL <- NLbw_global_models_list[[i]]
+  modelOG <- bw_global_models_list[[i]]
+  #x <- test_prs[,names(NLbw_global_models_list)[i]]
+  #df$x_zscore <- qnorm(x)
+  anova <- anova(modelOG, modelNL, test = "LRT")
+  bw_modelcompare$pr[i] <- anova$`Pr(>Chi)`[2]
+}
+
+for(i in (length(NLbw_global_models_list)+1):length_total){
+  j = i - length(NLbw_global_models_list)
+ bw_modelcompare$label[i] <- as.character(name_mapping$region_name[match(sub("_centiles", "",names(NLbw_regional_models_list)[j]), name_mapping$abbreviation)])
+ bw_modelcompare$phenotype[i] <- names(NLbw_regional_models_list)[j]
+  modelNL <- NLbw_regional_models_list[[j]]
+  modelOG <- bw_regional_models_list[[j]]
+  #x <- test_prs[,names(NLbw_regional_models_list)[i]]
+  #df$x_zscore <- qnorm(x)
+  anova <- anova(modelOG, modelNL, test = "LRT")
+  bw_modelcompare$pr[i] <- anova$`Pr(>Chi)`[2]
+}
+
+NL_sig_models <- bw_modelcompare[bw_modelcompare$pr < 0.05,]
+```
+####Plot models significantly better fit with NL model
+```{r}
+plot <- TRUE
+NLall_models <- c(NLbw_global_models_list, NLbw_regional_models_list)
+OGall_models <- c(bw_global_models_list, bw_regional_models_list)
+plots_nl <- vector(mode = "list", length = length(NLall_models))
+for (i  in 1:length(NLall_models)) {
+  modelNL <- NLall_models[[i]]
+  modelOG <- OGall_models[[i]]
+  if(!(names(NLall_models)[i] %in% NL_sig_models$phenotype)) next
+  x <- test_prs[,names(NLall_models)[i]]
+ df$x_zscore <- qnorm(x)
+ new_data <- data.frame(bw_zscore = seq(min(df$bw_zscore, na.rm = TRUE), max(df$bw_zscore, na.rm = TRUE), length.out = 100))
+ new_data$y_predNL <- predict(modelNL, newdata = new_data)
+ new_data$y_predOG <- predict(modelOG, newdata = new_data)
+ 
+ #Save plot
+ title <-  as.character(name_mapping$region_name[match(sub("_centiles", "", names(NLall_models)[i]),  name_mapping$abbreviation)])
+  plots_nl[[i]] <- ggplot(df, aes(bw_zscore, x_zscore)) +
+   geom_line(data = new_data, aes(bw_zscore, y_predNL), color = "red", linewidth = 1) + 
+    geom_line(data = new_data, aes(bw_zscore, y_predOG), color = "blue", linewidth = 1) +
+    ggtitle(title)
+
+}
+plots_nl <- Filter(Negate(is.null), plots_nl)
+do.call("grid.arrange", c(plots_nl[1:15], ncol=5))
+
+#The code below gives an error ... haven't solved it yet.
+if (plot == TRUE){
+  n <- length(plots_nl)
+  nCol <- min(c(floor(sqrt(n)), 4))
+  nRow <- min(ceiling(n/nCol), 4)
+  breaks <- c(seq(from = 0, to = n , by = (nCol*nRow)), n)
+  for(k in 1:length(breaks)){
+    start <- breaks[k] + 1
+    end <- breaks[k+1]
+    do.call("grid.arrange", c(plots_nl[start:end], ncol=nCol))
+  }
+}                                
+
+
+
+##Visualize models where it is significantly better than linear model
+#Predict on new data
+for (i in 1:length(NLbw_global_models_list)){
+model <- NLbw_global_models_list[[i]]
+
+x <- test_prs[,names(NLbw_global_models_list)[i]]
+df$x_zscore <- qnorm(x)
+new_data <- data.frame(bw_zscore = seq(min(df$bw_zscore, na.rm = TRUE), max(df$bw_zscore, na.rm = TRUE), length.out = 100))
+new_data$y_pred <- predict(model, newdata = new_data)
+
+#Plot
+title <-  as.character(name_mapping$region_name[match(sub("_centiles", "", names(NLbw_global_models_list)[i]), name_mapping$abbreviation)])
+p <- ggplot(df, aes(bw_zscore, x_zscore)) +
+  geom_point() +
+  geom_line(data = new_data, aes(bw_zscore, y_pred), color = "blue", linewidth = 1) + ggtitle(title)
+print(p)
+}
+
+for (i in 1:length(NLbw_regional_models_list)){
+model <- NLbw_regional_models_list[[i]]
+if(!(names(NLbw_regional_models_list)[i] %in% NL_sig_models$phenotype)){
+  stop()
+}
+x <- test_prs[,names(NLbw_regional_models_list)[i]]
+df$x_zscore <- qnorm(x)
+new_data <- data.frame(bw_zscore = seq(min(df$bw_zscore, na.rm = TRUE), max(df$bw_zscore, na.rm = TRUE), length.out = 100))
+new_data$y_pred <- predict(model, newdata = new_data)
+
+#Plot
+title <-  as.character(name_mapping$region_name[match(sub("_centiles", "", names(NLbw_regional_models_list)[i]), name_mapping$abbreviation)])
+p <- ggplot(df, aes(bw_zscore, x_zscore)) +
+  geom_point() +
+  geom_line(data = new_data, aes(bw_zscore, y_pred), color = "blue", linewidth = 1) + ggtitle(title)
+print(p)
+}
+```
+
+###birth weight percentile
+```{r}
+sum(!is.na(test_prs$bweight_percentile))
+bwp_zscore <- qnorm(test_prs$bweight_percentile)
+
+#Global Phenotypes
+bwp_reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  
+  x_zscore <- qnorm(x)
+  x_zscore[is.infinite(x_zscore)] <- NA
+  lm <- lm(x_zscore ~ bwp_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+bwp_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bwp_reg_table_global)), name_mapping$abbreviation)]
+
+bwp_reg_table_global_sig <- bwp_reg_table_global %>% filter(bw_p < 0.05)
+bwp_reg_table_global$bw_p_adj <- p.adjust(bwp_reg_table_global$bw_p, method = "BH")
+bwp_reg_table_global_sig_MC <- bwp_reg_table_global %>% filter(bw_p_adj < 0.05)
+
+bwp_reg_table_global_sig_MC
+
+#Regional Phenotypes
+bwp_reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  x_zscore[is.infinite(x_zscore)] <- NA
+  
+  lm <- lm(x_zscore ~ bwp_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+bwp_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bwp_reg_table_full)), name_mapping$abbreviation)]
+
+bwp_reg_table_full_sig <- bwp_reg_table_full %>% filter(bw_p < 0.05)
+bwp_reg_table_full$bw_p_adj <- p.adjust(bwp_reg_table_full$bw_p, method = "BH")
+bwp_reg_table_full_sig_MC <- bwp_reg_table_full %>% filter(bw_p_adj < 0.05)
+```
+####visualize on surface
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(bwp_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bwp_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+bwp_reg_table_full_sig_MC[!(bwp_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bwp_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW - percentile")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW - percentile")
+```
+###neonatal-comp
+```{r}
+sum(!is.na(test_prs$neonatal_comp_total))
+neo_comp_zscore <- z_score(test_prs$neonatal_comp_total)
+
+#Global Phenotypes
+neo_comp_reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ neo_comp_zscore)
+  summary <- summary(lm)
+  
+  c(neo_comp_beta = summary$coefficients[2,1], neo_comp_p = summary$coefficients[2,4])
+})))
+
+neo_comp_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(neo_comp_reg_table_global)), name_mapping$abbreviation)]
+
+neo_comp_reg_table_global_sig <- neo_comp_reg_table_global %>% filter(neo_comp_p < 0.05)
+neo_comp_reg_table_global$neo_comp_p_adj <- p.adjust(neo_comp_reg_table_global$neo_comp_p, method = "BH")
+neo_comp_reg_table_global_sig_MC <- neo_comp_reg_table_global %>% filter(neo_comp_p_adj < 0.05)
+
+neo_comp_reg_table_global_sig_MC 
+
+#Regional phenotypes
+neo_comp_reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ neo_comp_zscore)
+  summary <- summary(lm)
+  
+  c(neo_comp_beta = summary$coefficients[2,1], neo_comp_p = summary$coefficients[2,4])
+})))
+
+neo_comp_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(neo_comp_reg_table_full)), name_mapping$abbreviation)]
+
+neo_comp_reg_table_full_sig <- neo_comp_reg_table_full %>% filter(neo_comp_p < 0.05)
+neo_comp_reg_table_full$neo_comp_p_adj <- p.adjust(neo_comp_reg_table_full$neo_comp_p, method = "BH")
+neo_comp_reg_table_full_sig_MC <- neo_comp_reg_table_full %>% filter(neo_comp_p_adj < 0.05)
+```
+####visualize on surface
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(neo_comp_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(neo_comp_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+neo_comp_reg_table_full_sig_MC[!(neo_comp_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(neo_comp_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = neo_comp_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with Neonatal Comp.")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = neo_comp_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with Neonatal Comp.")
+```
+###PRS-bw
+```{r}
+sum(!is.na(test_prs$bw_pgs))
+bw_pgs_zscore <- as.data.frame(sapply(test_prs[,c("bw_pgs", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10")], function(x) {z_score(x)}))
+
+#Global Phenotypes
+bw_pgs_reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_pgs_zscore$bw_pgs + bw_pgs_zscore$PC1 + bw_pgs_zscore$PC2 + bw_pgs_zscore$PC3 + bw_pgs_zscore$PC4 + bw_pgs_zscore$PC5 + bw_pgs_zscore$PC6 + bw_pgs_zscore$PC7 + bw_pgs_zscore$PC8 + bw_pgs_zscore$PC9 + bw_pgs_zscore$PC10)
+  summary <- summary(lm)
+  
+  c(bw_pgs_beta = summary$coefficients[2,1], bw_pgs_p = summary$coefficients[2,4], bw_pgs_se = summary$coefficients[2,2])
+})))
+
+bw_pgs_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_pgs_reg_table_global)), name_mapping$abbreviation)]
+
+bw_pgs_reg_table_global_sig <- bw_pgs_reg_table_global %>% filter(bw_pgs_p < 0.05)
+bw_pgs_reg_table_global$bw_pgs_p_adj <- p.adjust(bw_pgs_reg_table_global$bw_pgs_p, method = "BH")
+bw_pgs_reg_table_global_sig_MC <- bw_pgs_reg_table_global %>% filter(bw_pgs_p_adj < 0.05)
+
+bw_pgs_reg_table_global_sig_MC
+
+#Regional Phenotypes
+bw_pgs_reg_table_full <- as.data.frame(t(sapply(test_prs[,which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_pgs_zscore$bw_pgs + bw_pgs_zscore$PC1 + bw_pgs_zscore$PC2 + bw_pgs_zscore$PC3 + bw_pgs_zscore$PC4 + bw_pgs_zscore$PC5 + bw_pgs_zscore$PC6 + bw_pgs_zscore$PC7 + bw_pgs_zscore$PC8 + bw_pgs_zscore$PC9 + bw_pgs_zscore$PC10)
+  summary <- summary(lm)
+  
+  c(bw_pgs_beta = summary$coefficients[2,1], bw_pgs_p = summary$coefficients[2,4], bw_pgs_se = summary$coefficients[2,2])
+})))
+
+bw_pgs_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_pgs_reg_table_full)), name_mapping$abbreviation)]
+
+bw_pgs_reg_table_full_sig <- bw_pgs_reg_table_full %>% filter(bw_pgs_p < 0.05)
+bw_pgs_reg_table_full$bw_pgs_p_adj <- p.adjust(bw_pgs_reg_table_full$bw_pgs_p, method = "BH")
+bw_pgs_reg_table_full_sig_MC <- bw_pgs_reg_table_full %>% filter(bw_pgs_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- bw_pgs_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_pgs_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweightPGS_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweightPGS_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+####visualize on atlas
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(bw_pgs_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bw_pgs_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+bw_pgs_reg_table_full_sig_MC[!(bw_pgs_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bw_pgs_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW_pgs")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW_pgs")
+```
+####correlations with bw
+- spin test in Python using neuromaps package
+```{r}
+bw_bwpgs <- merge(bw_pgs_reg_table_full, bw_reg_table_full, by = c("label"))
+#all regions
+plot(bw_bwpgs$bw_beta, bw_bwpgs$bw_pgs_beta)
+cor.test(bw_bwpgs$bw_beta, bw_bwpgs$bw_pgs_beta)
+#only significant post-FDR in both
+bw_bwpgs_sig <- bw_bwpgs %>% filter(bw_p_adj < 0.05 & bw_pgs_p_adj < 0.05)
+plot(bw_bwpgs_sig$bw_beta, bw_bwpgs_sig$bw_pgs_beta)
+cor.test(bw_bwpgs_sig$bw_beta, bw_bwpgs_sig$bw_pgs_beta)
+```
+###general P-factor
+```{r}
+sum(!is.na(test_prs$General_p))
+gp_zscore <- z_score(test_prs$General_p)
+
+#Global Phenotypes
+gp_reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ gp_zscore)
+  summary <- summary(lm)
+  
+  c(gp_beta = summary$coefficients[2,1], gp_p = summary$coefficients[2,4])
+})))
+
+gp_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(gp_reg_table_global)), name_mapping$abbreviation)]
+
+gp_reg_table_global_sig <- gp_reg_table_global %>% filter(gp_p < 0.05)
+gp_reg_table_global$gp_p_adj <- p.adjust(gp_reg_table_global$gp_p, method = "BH")
+gp_reg_table_global_sig_MC <- gp_reg_table_global %>% filter(gp_p_adj < 0.05)
+
+gp_reg_table_global_sig_MC
+
+#Regional Phenotypes
+gp_reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ gp_zscore)
+  summary <- summary(lm)
+  
+  c(gp_beta = summary$coefficients[2,1], gp_p = summary$coefficients[2,4])
+})))
+
+gp_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(gp_reg_table_full)), name_mapping$abbreviation)]
+
+gp_reg_table_full_sig <- gp_reg_table_full %>% filter(gp_p < 0.05)
+gp_reg_table_full$gp_p_adj <- p.adjust(gp_reg_table_full$gp_p, method = "BH")
+gp_reg_table_full_sig_MC <- gp_reg_table_full %>% filter(gp_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- gp_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_pgs_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_genP_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_genP_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+####visualize on surface
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(gp_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(gp_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+gp_reg_table_full_sig_MC[!(gp_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(gp_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = gp_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with P-factor")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = gp_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() 
++
+  labs(title = "Subcortical with P-factor")
+```
+##With Covariates
+###GA-BW as cov
+```{r}
+#regression
+ga_zscore <- z_score(test_prs$gestAge)
+bw_zscore <- z_score(test_prs$birth_weight_lbs)
+neo_comp_zscore <- z_score(test_prs$neonatal_comp_total)
+reg_table_full <- as.data.frame(t(sapply(test_prs[, grepl("centiles", names(test_prs))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore + bw_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], bw_beta = summary$coefficients[3,1], bw_p = summary$coefficients[3,4])
+})))
+
+reg_table_full_sig <- reg_table_full %>% filter(ga_p < 0.05)
+reg_table_full$ga_p_adj <- p.adjust(reg_table_full$ga_p, method = "BH")
+reg_table_full_sig_MC <- reg_table_full %>% filter(ga_p_adj < 0.05)
+```
+
+####GA coefs
+```{r}
+reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+reg_table_full_sig_MC[!(reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+#Setting manual limits (could match the colorbar limits between different variables)
+# Plot using ggseg
+# ggplot(plot_data) +
+#   geom_brain(atlas = dk, 
+#              position = position_brain(hemi ~ side),
+#              aes(fill = correlation.rho)) +
+#   scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+#   theme_void() +
+#   labs(title = "Regions with GA")
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with GA")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with GA")
+```
+####BW coefs
+```{r}
+bw_reg_table_full_sig <- reg_table_full %>% filter(bw_p < 0.05)
+reg_table_full$bw_p_adj <- p.adjust(reg_table_full$bw_p, method = "BH")
+bw_reg_table_full_sig_MC <- reg_table_full %>% filter(bw_p_adj < 0.05)
+
+bw_reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(bw_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bw_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#bw_regions not matched in atlases
+bw_reg_table_full_sig_MC[!(bw_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bw_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with BW")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with BW")
+```
+
+###GA-BWpercentile as cov
+```{r}
+#regression
+bwp_ga_reg_table_full <- as.data.frame(t(sapply(test_prs[, grepl("centiles", names(test_prs))], function(x) {
+  ga_zscore <- z_score(test_prs$gestAge)
+  bwp_zscore <- qnorm(test_prs$bweight_percentile)
+  x_zscore <- qnorm(x)
+  
+  #also omit those cells in ga_zscore and bwp_zscore to match the two vectors
+  ga_zscore[is.infinite(x_zscore)] <- NA
+  ga_zscore[is.infinite(bwp_zscore)] <- NA
+  ga_zscore[is.na(bwp_zscore)] <- NA
+  ga_zscore[is.na(x_zscore)] <- NA
+  bwp_zscore[is.na(ga_zscore)] <- NA
+  x_zscore[is.na(ga_zscore)] <- NA
+  ga_zscore <- na.omit(ga_zscore)
+  
+  bwp_zscore[is.infinite(x_zscore)] <- NA
+  bwp_zscore[is.infinite(bwp_zscore)] <- NA
+  bwp_zscore[is.na(x_zscore)] <- NA
+  x_zscore[is.na(bwp_zscore)] <- NA
+  x_zscore[is.infinite(bwp_zscore)] <- NA
+  bwp_zscore <- na.omit(bwp_zscore)
+
+  #omit cells with infinite values after applying qnorm
+  x_zscore[is.infinite(x_zscore)] <- NA
+  x_zscore <- na.omit(x_zscore)
+  lm <- lm(x_zscore ~ ga_zscore + bwp_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], bwp_beta = summary$coefficients[3,1], bwp_p = summary$coefficients[3,4])
+})))
+
+ga_reg_table_full_sig <- bwp_ga_reg_table_full %>% filter(ga_p < 0.05)
+bwp_ga_reg_table_full$ga_p_adj <- p.adjust(bwp_ga_reg_table_full$ga_p, method = "BH")
+bwp_ga_reg_table_full$bwp_p_adj <- p.adjust(bwp_ga_reg_table_full$bwp_p, method = "BH")
+ga_reg_table_full_sig_MC <- bwp_ga_reg_table_full %>% filter(ga_p_adj < 0.05)
+bwpga_reg_table_full_sig <- bwp_ga_reg_table_full %>% filter(bwp_p < 0.05)
+bwpga_reg_table_full_sig_MC <- bwp_ga_reg_table_full %>% filter(bwp_p_adj < 0.05)
+```
+####GA coefs
+```{r}
+ga_reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(ga_reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(ga_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(ga_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+ga_reg_table_full_sig_MC[!(ga_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(ga_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+#Setting manual limits (could match the colorbar limits between different variables)
+# Plot using ggseg
+# ggplot(plot_data) +
+#   geom_brain(atlas = dk, 
+#              position = position_brain(hemi ~ side),
+#              aes(fill = correlation.rho)) +
+#   scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+#   theme_void() +
+#   labs(title = "Regions with GA")
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with GA")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with GA")
+```
+####BWp coefs
+```{r}
+
+bwpga_reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bwpga_reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(bwpga_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bwpga_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#bwpga_regions not matched in atlases
+bwpga_reg_table_full_sig_MC[!(bwpga_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bwpga_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bwp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with BW Percentile")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bwp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with BW Percentile")
+```
+
+###GA-NeoComp as cov
+Look at the predicted centiles (from cross model) with GA, whole sample
+```{r}
+#regression
+ga_zscore <- z_score(test_prs$gestAge)
+bw_zscore <- z_score(test_prs$birth_weight_lbs)
+neo_comp_zscore <- z_score(test_prs$neonatal_comp_total)
+reg_table_full <- as.data.frame(t(sapply(full_test_df[, grepl("centiles", names(full_test_df))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore + neo_comp_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], neo_comp_beta = summary$coefficients[3,1], neo_comp_p = summary$coefficients[3,4])
+})))
+
+reg_table_full_sig <- reg_table_full %>% filter(ga_p < 0.05)
+reg_table_full$ga_p_adj <- p.adjust(reg_table_full$ga_p, method = "BH")
+reg_table_full$neo_comp_p_adj <- p.adjust(reg_table_full$neo_comp_p, method = "BH")
+reg_table_full_sig_MC <- reg_table_full %>% filter(ga_p_adj < 0.05)
+```
+
+####GA coefs
+```{r}
+reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+reg_table_full_sig_MC[!(reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+#Setting manual limits (could match the colorbar limits between different variables)
+# Plot using ggseg
+# ggplot(plot_data) +
+#   geom_brain(atlas = dk, 
+#              position = position_brain(hemi ~ side),
+#              aes(fill = correlation.rho)) +
+#   scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+#   theme_void() +
+#   labs(title = "Regions with GA")
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with GA")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with GA")
+```
+
+
+####NeoComp coefs
+```{r}
+neo_comp_reg_table_full_sig <- reg_table_full %>% filter(neo_comp_p < 0.05)
+neo_comp_reg_table_full_sig_MC <- reg_table_full %>% filter(neo_comp_p_adj < 0.05)
+
+neo_comp_reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(neo_comp_reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(neo_comp_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(neo_comp_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#neo_comp_regions not matched in atlases
+neo_comp_reg_table_full_sig_MC[!(neo_comp_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(neo_comp_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = neo_comp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with Neo Comp")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = neo_comp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with Neo Comp")
+```
+
+
+###GA - BW and Neo Comp as Covar
+```{r}
+#regression
+ga_zscore <- z_score(test_prs$gestAge)
+bw_zscore <- z_score(test_prs$birth_weight_lbs)
+neo_comp_zscore <- z_score(test_prs$neonatal_comp_total)
+reg_table_full <- as.data.frame(t(sapply(full_test_df[, grepl("centiles", names(full_test_df))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore + bw_zscore + neo_comp_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], bw_beta = summary$coefficients[3,1], bw_p = summary$coefficients[3,4], neo_comp_beta = summary$coefficients[4,1], neo_comp_p = summary$coefficients[4,4])
+})))
+
+reg_table_full_sig <- reg_table_full %>% filter(ga_p < 0.05)
+reg_table_full$ga_p_adj <- p.adjust(reg_table_full$ga_p, method = "BH")
+reg_table_full_sig_MC <- reg_table_full %>% filter(ga_p_adj < 0.05)
+```
+####GA coefs
+```{r}
+reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+reg_table_full_sig_MC[!(reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+#Setting manual limits (could match the colorbar limits between different variables)
+# Plot using ggseg
+# ggplot(plot_data) +
+#   geom_brain(atlas = dk, 
+#              position = position_brain(hemi ~ side),
+#              aes(fill = correlation.rho)) +
+#   scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+#   theme_void() +
+#   labs(title = "Regions with GA")
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with GA")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with GA")
+```
+
+
+###BW percentile - BW PGS as covar -- adapted to global/regional MC
+```{r}
+sum(!is.na(test_prs$bw_pgs))
+bw_pgs_zscore <- as.data.frame(sapply(test_prs[,c("bw_pgs", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10")], function(x) {z_score(x)}))
+bw_pgs_zscore$bw_zscore <- qnorm(test_prs$bweight_percentile)
+#bw_pgs_zscore$bw_zscore <- z_score(test_prs$birth_weight_sum_oz)
+
+#Global variables
+bw_bwpgs_reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_pgs_zscore$bw_pgs + bw_pgs_zscore$bw_zscore + bw_pgs_zscore$PC1 + bw_pgs_zscore$PC2 + bw_pgs_zscore$PC3 + bw_pgs_zscore$PC4 + bw_pgs_zscore$PC5 + bw_pgs_zscore$PC6 + bw_pgs_zscore$PC7 + bw_pgs_zscore$PC8 + bw_pgs_zscore$PC9 + bw_pgs_zscore$PC10)
+  summary <- summary(lm)
+  
+  c(bw_pgs_beta = summary$coefficients[2,1], bw_pgs_p = summary$coefficients[2,4], bw_pgs_se = summary$coefficients[2,2], bw_beta = summary$coefficients[3,1], bw_p = summary$coefficients[3,4], bw_se = summary$coefficients[3,2])
+})))
+
+bw_bwpgs_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_bwpgs_reg_table_global)), name_mapping$abbreviation)]
+
+bw_bwpgs_reg_table_global_sig <- bw_bwpgs_reg_table_global %>% filter(bw_pgs_p < 0.05)
+bw_bwpgs_reg_table_global$bw_pgs_p_adj <- p.adjust(bw_bwpgs_reg_table_global$bw_pgs_p, method = "BH")
+bw_bwpgs_reg_table_global_sig_MC <- bw_bwpgs_reg_table_global %>% filter(bw_pgs_p_adj < 0.05)
+
+bw_bwpgs_reg_table_global_sig_MC
+
+
+#Regional variables
+bw_bwpgs_reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_pgs_zscore$bw_pgs + bw_pgs_zscore$bw_zscore + bw_pgs_zscore$PC1 + bw_pgs_zscore$PC2 + bw_pgs_zscore$PC3 + bw_pgs_zscore$PC4 + bw_pgs_zscore$PC5 + bw_pgs_zscore$PC6 + bw_pgs_zscore$PC7 + bw_pgs_zscore$PC8 + bw_pgs_zscore$PC9 + bw_pgs_zscore$PC10)
+  summary <- summary(lm)
+  
+  c(bw_pgs_beta = summary$coefficients[2,1], bw_pgs_p = summary$coefficients[2,4], bw_pgs_se = summary$coefficients[2,2], bw_beta = summary$coefficients[3,1], bw_p = summary$coefficients[3,4], bw_se = summary$coefficients[3,2])
+})))
+
+bw_bwpgs_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_bwpgs_reg_table_full)), name_mapping$abbreviation)]
+
+bw_bwpgs_reg_table_full_sig <- bw_bwpgs_reg_table_full %>% filter(bw_pgs_p < 0.05)
+bw_bwpgs_reg_table_full$bw_pgs_p_adj <- p.adjust(bw_bwpgs_reg_table_full$bw_pgs_p, method = "BH")
+bw_bwpgs_reg_table_full_sig_MC <- bw_bwpgs_reg_table_full %>% filter(bw_pgs_p_adj < 0.05)
+```
+####surface visualization of bw-pgs beta
+```{r}
+
+#merge with atlas data
+plot_data_dkt <- merge(bw_bwpgs_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bw_bwpgs_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+bw_bwpgs_reg_table_full_sig_MC[!(bw_bwpgs_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bw_bwpgs_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW_pgs, covar BWpercentile")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW_pgs, covar BWpercentile")
+```
+###BW - weight & height as covar
+```{r}
+cor.test(test_prs$birth_weight_lbs, test_prs$anthroweightcalc)
+cor.test(test_prs$birth_weight_lbs, test_prs$anthroheightcalc)
+bw_wh_reg_table_full <- as.data.frame(t(sapply(test_prs[, grepl("centiles", names(test_prs))], function(x) {
+  weight_zscore <- z_score(test_prs$anthroweightcalc)
+  height_zscore <- z_score(test_prs$anthroheightcalc)
+  bw_zscore <- z_score(test_prs$birth_weight_lbs)
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore + weight_zscore + height_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4], weight_beta = summary$coefficients[3,1], weight_p = summary$coefficients[3,4], height_beta = summary$coefficients[4,1], height_p = summary$coefficients[4,4])
+})))
+
+bw_wh_reg_table_full$bw_p_adj <- p.adjust(bw_wh_reg_table_full$bw_p, method = "BH")
+bw_wh_reg_table_full$weight_p_adj <- p.adjust(bw_wh_reg_table_full$weight_p, method = "BH")
+bw_wh_reg_table_full$height_p_adj <- p.adjust(bw_wh_reg_table_full$height_p, method = "BH")
+
+bw_reg_table_full_sig_MC <- bw_wh_reg_table_full %>% filter(bw_p_adj < 0.05)
+weight_reg_table_full_sig_MC <- bw_wh_reg_table_full %>% filter(weight_p_adj < 0.05)
+height_reg_table_full_sig_MC <- bw_wh_reg_table_full %>% filter(height_p_adj < 0.05)
+```
+
+```{r}
+bw_reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(bw_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bw_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+bw_reg_table_full_sig_MC[!(bw_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bw_reg_table_full_sig_MC$label %in% plot_data_aseg$label),c("bw_beta", "bw_p_adj", "label")]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with BW")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with BW")
+```
+##Interactions
+###GA*BW
+```{r}
+ga_zscore <- z_score(test_prs$gestAge)
+bw_zscore <- z_score(test_prs$birth_weight_sum_oz)
+neo_comp_zscore <- z_score(test_prs$neonatal_comp_total)
+
+#Global phenotypes
+gabw_reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore*bw_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], ga_se = summary$coefficients[2,2],
+    bw_beta = summary$coefficients[3,1], bw_p = summary$coefficients[3,4], bw_se = summary$coefficients[2,3],
+    gabw_beta = summary$coefficients[4,1], gabw_p = summary$coefficients[4,4], gabw_se = summary$coefficients[2,4])
+})))
+
+gabw_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(gabw_reg_table_global)), name_mapping$abbreviation)]
+
+#gabw_regional Phenotypes
+gabw_reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore*bw_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], ga_se = summary$coefficients[2,2], 
+    bw_beta = summary$coefficients[3,1], bw_p = summary$coefficients[3,4], bw_se = summary$coefficients[2,3],
+    gabw_beta = summary$coefficients[4,1], gabw_p = summary$coefficients[4,4], gabw_se = summary$coefficients[2,4])
+})))
+
+gabw_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(gabw_reg_table_full)), name_mapping$abbreviation)]
+
+gabw_reg_table_full$ga_p_adj <- p.adjust(gabw_reg_table_full$ga_p, method = "BH")
+gabw_reg_table_full$bw_p_adj <- p.adjust(gabw_reg_table_full$bw_p, method = "BH")
+gabw_reg_table_full$gabw_p_adj <- p.adjust(gabw_reg_table_full$gabw_p, method = "BH")
+
+ga_reg_table_full_sig <- gabw_reg_table_full %>% filter(ga_p < 0.05)
+bw_reg_table_full_sig <- gabw_reg_table_full %>% filter(bw_p < 0.05)
+gabw_reg_table_full_sig <- gabw_reg_table_full %>% filter(gabw_p < 0.05)
+
+ga_reg_table_full_sig_MC <- gabw_reg_table_full %>% filter(ga_p_adj < 0.05)
+bw_reg_table_full_sig_MC <- gabw_reg_table_full %>% filter(bw_p_adj < 0.05)
+gabw_reg_table_full_sig_MC <- gabw_reg_table_full %>% filter(gabw_p_adj < 0.05)
+```
+####GA coefs
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(ga_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(ga_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#ga_regions not matched in atlases
+ga_reg_table_full_sig_MC[!(ga_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(ga_reg_table_full_sig_MC$label %in% plot_data_aseg$label),c ("ga_beta", "ga_p_adj", "label")]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical ga_regions with GA")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with GA")
+```
+####BW coefs
+
+####interaction effect (surface plots)
+13 regions significant, but only 1 after correcting for MC
+```{r}
+gabw_reg_table_full_sig$label <- name_mapping$region_name[match(sub(".t2_centiles", "", rownames(gabw_reg_table_full_sig)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(gabw_reg_table_full_sig, ggseg::dk, by = "label")
+plot_data_aseg <- merge(gabw_reg_table_full_sig, ggseg::aseg, by = "label")
+
+#gabw_regions not matched in atlases
+gabw_reg_table_full_sig[!(gabw_reg_table_full_sig$label %in% plot_data_dkt$label) & !(gabw_reg_table_full_sig$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = gabw_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with gabw")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = gabw_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with gabw")
+```
+####visualize the interaction(interaction plots)
+```{r}
+vars <- rownames(gabw_reg_table_full_sig[order(-(gabw_reg_table_full_sig$gabw_beta)),])
+ga_zscore <- z_score(test_prs$gestAge)
+bw_zscore <- z_score(test_prs$birth_weight_lbs)
+neo_comp_zscore <- z_score(test_prs$neonatal_comp_total)
+interaction_plots <-  vector(mode = "list", length = length(vars))
+for (i in 1:length(vars)){
+  x <- test_prs[,grepl(vars[i], names(test_prs))]
+  y_label <- name_mapping$region_name[match(sub("_centiles", "", vars[i]), name_mapping$abbreviation)]
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore*bw_zscore)
+  summary <- summary(lm)
+  interaction_plots[[i]] <- interact_plot(lm, pred = bw_zscore, modx = ga_zscore, modx.values = c(-5.48052197636876, -4.11781530029582, -3.20934418291386, -2.30087306553191,  -1.39240194814995,-0.483930830767994 , 0.424540286613962), modx.labels = c("27", "30", "32", "34", "36", "38", "40")) + ylab(y_label) + ggtitle(paste0("gabw beta = ", as.character(signif(summary$coefficients[4,1], 3))))
+}
+
+#n <- length(interaction_plots)
+nCol <- 4
+do.call("grid.arrange", c(interaction_plots[1:8], ncol=nCol))
+do.call("grid.arrange", c(interaction_plots[9:13], ncol=nCol))
+```
+###GA*BWpercentile
+```{r}
+ga_zscore <- z_score(test_prs$gestAge)
+bwp_zscore <- z_score(test_prs$birth_weight_sum_oz)
+neo_comp_zscore <- z_score(test_prs$neonatal_comp_total)
+
+#Global phenotypes
+gabwp_reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore*bwp_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], ga_se = summary$coefficients[2,2],
+    bwp_beta = summary$coefficients[3,1], bwp_p = summary$coefficients[3,4], bwp_se = summary$coefficients[2,3],
+    gabwp_beta = summary$coefficients[4,1], gabwp_p = summary$coefficients[4,4], gabwp_se = summary$coefficients[2,4])
+})))
+
+gabwp_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(gabwp_reg_table_global)), name_mapping$abbreviation)]
+
+#gabwp_regional Phenotypes
+gabwp_reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore*bwp_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], ga_se = summary$coefficients[2,2], 
+    bwp_beta = summary$coefficients[3,1], bwp_p = summary$coefficients[3,4], bwp_se = summary$coefficients[2,3],
+    gabwp_beta = summary$coefficients[4,1], gabwp_p = summary$coefficients[4,4], gabwp_se = summary$coefficients[2,4])
+})))
+
+gabwp_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(gabwp_reg_table_full)), name_mapping$abbreviation)]
+
+gabwp_reg_table_full$ga_p_adj <- p.adjust(gabwp_reg_table_full$ga_p, method = "BH")
+gabwp_reg_table_full$bwp_p_adj <- p.adjust(gabwp_reg_table_full$bwp_p, method = "BH")
+gabwp_reg_table_full$gabwp_p_adj <- p.adjust(gabwp_reg_table_full$gabwp_p, method = "BH")
+
+ga_reg_table_full_sig <- gabwp_reg_table_full %>% filter(ga_p < 0.05)
+bwp_reg_table_full_sig <- gabwp_reg_table_full %>% filter(bwp_p < 0.05)
+gabwp_reg_table_full_sig <- gabwp_reg_table_full %>% filter(gabwp_p < 0.05)
+
+ga_reg_table_full_sig_MC <- gabwp_reg_table_full %>% filter(ga_p_adj < 0.05)
+bwp_reg_table_full_sig_MC <- gabwp_reg_table_full %>% filter(bwp_p_adj < 0.05)
+gabwp_reg_table_full_sig_MC <- gabwp_reg_table_full %>% filter(gabwp_p_adj < 0.05)
+```
+####GA coefs
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(ga_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(ga_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#ga_regions not matched in atlases
+ga_reg_table_full_sig_MC[!(ga_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(ga_reg_table_full_sig_MC$label %in% plot_data_aseg$label),c("ga_beta", "ga_p_adj", "label")]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical ga_regions with GA")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with GA")
+```
+####bwp coefs
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(bwp_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bwp_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#bwp_regions not matched in atlases
+bwp_reg_table_full_sig_MC[!(bwp_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bwp_reg_table_full_sig_MC$label %in% plot_data_aseg$label),c("bwp_beta", "bwp_p_adj", "label")]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bwp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical bwp_regions with BWp")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bwp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with BWp")
+```
+####interaction effect (surface plots)
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(gabwp_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(gabwp_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#gabwp_regions not matched in atlases
+gabwp_reg_table_full_sig_MC[!(gabwp_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(gabwp_reg_table_full_sig_MC$label %in% plot_data_aseg$label),c("gabwp_beta", "gabwp_p_adj", "label")]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = gabwp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with GAxBWp")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = gabwp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with GAxBWp")
+```
+####visualize the interaction(interaction plots)
+```{r}
+vars <- rownames(gabwp_reg_table_full_sig_MC[order(-abs(gabwp_reg_table_full_sig_MC$gabwp_beta)),])
+ga_zscore <- z_score(test_prs$gestAge)
+bwp_zscore <- qnorm(test_prs$bweight_percentile)
+bwp_zscore[is.infinite(bwp_zscore)] <- NA
+interaction_plots <-  vector(mode = "list", length = length(vars))
+for (i in 1:length(vars)){
+  x <- test_prs[,grepl(vars[i], names(test_prs))]
+  y_label <- name_mapping$region_name[match(sub("_centiles", "", vars[i]), name_mapping$abbreviation)]
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore*bwp_zscore)
+  summary <- summary(lm)
+  interaction_plots[[i]] <- interact_plot(lm, pred = bwp_zscore, modx = ga_zscore, modx.values = c(-5.48052197636876, -4.11781530029582, -3.20934418291386, -2.30087306553191,  -1.39240194814995,-0.483930830767994 , 0.424540286613962), modx.labels = c("27", "30", "32", "34", "36", "38", "40")) + ylab(y_label) + ggtitle(paste0("gabwp beta = ", as.character(signif(summary$coefficients[4,1], 3))))
+}
+
+n <- length(interaction_plots)
+nCol <- min(c(floor(sqrt(n)), 4))
+nRow <- min(ceiling(n/nCol), 4)
+breaks <- c(seq(from = 0, to = n , by = (nCol*nRow)), n)
+for(k in 1:length(breaks)){
+  start <- breaks[k] + 1
+  end <- breaks[k+1]
+  do.call("grid.arrange", c(interaction_plots[start:end], ncol=nCol))
+}
+```
+###GA*BW
+##Behavioral
+###Define behavioral variables
+```{r}
+beh_vars<-c("Factor1","Factor2","Factor3","Factor4","Factor5","Factor6","Factor7","Factor8","General_p","anxdep","withdep","somatic","social","thought","attention","rulebreak","aggressive","totprob")
+```
+###General P Factor
+```{r}
+ga_zscore <- z_score(test_prs$gestAge)
+bw_zscore <- z_score(test_prs$birth_weight_lbs)
+bw_zscore2 <- bw_zscore^2
+neo_comp_zscore <- z_score(test_prs$neonatal_comp_total)
+lm_ga <- lm(General_p ~ ga_zscore, data = test_prs)
+summary(lm_ga)
+
+plot(ga_zscore, test_prs$General_p)
+
+lm_bw <- lm(General_p ~ bw_zscore, data = test_prs)
+summary(lm_bw)
+plot(lm_bw)
+
+plot(bw_zscore, test_prs$General_p)
+
+lm_neo <- lm(General_p ~ neo_comp_zscore, data = test_prs)
+summary(lm_neo)
+
+plot(neo_comp_zscore, test_prs$General_p)
+
+lm_gabw <- lm(General_p ~ ga_zscore + bw_zscore, data = test_prs)
+summary(lm_gabw)
+
+lm_gabwneo <- lm(General_p ~ ga_zscore + bw_zscore + neo_comp_zscore, data = test_prs)
+summary(lm_gabwneo)
+
+lm_bwneo <- lm(General_p ~  bw_zscore + neo_comp_zscore, data = test_prs)
+summary(lm_bwneo)
+
+lm_ganeo <- lm(General_p ~ ga_zscore + neo_comp_zscore, data = test_prs)
+summary(lm_ganeo)
+```
+##Correlations with centile scores - controlling for total brain volume in the regression
+###Gestational Age
+```{r}
+ga_zscore <- z_score(full_test_df$gestAge)
+total_volume_zcore <- qnorm(test_prs$smri_vol_scs_intracranialv_centiles)
+
+#Global phenotypes
+reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+lm <- lm(x_zscore ~ ga_zscore + total_volume_zcore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], ga_se = summary$coefficients[2,2])
+})))
+
+reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(reg_table_global)), name_mapping$abbreviation)]
+
+reg_table_global_sig <- reg_table_global %>% filter(ga_p < 0.05)
+reg_table_global$ga_p_adj <- p.adjust(reg_table_global$ga_p, method = "BH")
+reg_table_global_sig_MC <- reg_table_global %>% filter(ga_p_adj < 0.05)
+
+reg_table_global_sig_MC
+
+#Regional phenotypes
+reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore + total_volume_zcore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4], ga_se = summary$coefficients[2,2])
+})))
+
+reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(reg_table_full)), name_mapping$abbreviation)]
+
+reg_table_full_sig <- reg_table_full %>% filter(ga_p < 0.05)
+reg_table_full$ga_p_adj <- p.adjust(reg_table_full$ga_p, method = "BH")
+reg_table_full_sig_MC <- reg_table_full %>% filter(ga_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_gestAge_ICVcorrect_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_gestAge_ICVcorrect_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+reg_table_full_sig_MC[!(reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with GA")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with GA")
+```
+###birth weight
+```{r}
+sum(!is.na(test_prs$birth_weight_sum_oz))
+df <- as.data.frame(test_prs[,"src_subject_id"])
+df$bw_zscore <- z_score(test_prs$birth_weight_sum_oz)
+df$total_volume_zcore <- qnorm(test_prs$smri_vol_scs_intracranialv_centiles)
+
+#Global phenotypes -- save betas and p-values
+bw_reg_table_global <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  df$x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore + total_volume_zcore, data = df)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4], bw_se = summary$coefficients[2,2])
+})))
+
+bw_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_reg_table_global)), name_mapping$abbreviation)]
+
+bw_reg_table_global_sig <- bw_reg_table_global %>% filter(bw_p < 0.05)
+bw_reg_table_global$bw_p_adj <- p.adjust(bw_reg_table_global$bw_p, method = "BH")
+bw_reg_table_global_sig_MC <- bw_reg_table_global %>% filter(bw_p_adj < 0.05)
+
+bw_reg_table_global_sig_MC
+
+#Regional phenotypes -- save betas and p-values
+bw_reg_table_full <- as.data.frame(t(sapply(test_prs[, which(names(test_prs) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  df$x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore + total_volume_zcore, data = df)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4], bw_se = summary$coefficients[2,2])
+})))
+
+bw_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_reg_table_full)), name_mapping$abbreviation)]
+
+bw_reg_table_full_sig <- bw_reg_table_full %>% filter(bw_p < 0.05)
+bw_reg_table_full$bw_p_adj <- p.adjust(bw_reg_table_full$bw_p, method = "BH")
+bw_reg_table_full_sig_MC <- bw_reg_table_full %>% filter(bw_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- bw_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_ICVcorrect_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_ICVcorrect_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+####visualize on surface
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(bw_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bw_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+bw_reg_table_full_sig_MC[!(bw_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bw_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW")
+```
+###birth weight percentile
+```{r}
+bwp_reg_table_full <- as.data.frame(t(sapply(test_prs[, grepl("centiles", names(test_prs))], function(x) {
+  bwp_zscore <- qnorm(test_prs$bweight_percentile)
+  x_zscore <- qnorm(x)
+  #also omit those cells in bwp_zscore to match the two vectors
+  bwp_zscore[is.infinite(x_zscore)] <- NA
+  bwp_zscore[is.na(x_zscore)] <- NA
+  x_zscore[is.infinite(bwp_zscore)] <- NA
+  bwp_zscore[is.infinite(bwp_zscore)] <- NA
+  x_zscore[is.na(bwp_zscore)] <- NA
+  bwp_zscore <- na.omit(bwp_zscore)
+  #omit cells with infinite values after applying qnorm
+  x_zscore[is.infinite(x_zscore)] <- NA
+  x_zscore <- na.omit(x_zscore)
+  
+  lm <- lm(x_zscore ~ bwp_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+bwp_reg_table_full_sig <- bwp_reg_table_full %>% filter(bw_p < 0.05)
+bwp_reg_table_full$bw_p_adj <- p.adjust(bwp_reg_table_full$bw_p, method = "BH")
+bwp_reg_table_full_sig_MC <- bwp_reg_table_full %>% filter(bw_p_adj < 0.05)
+```
+
+```{r}
+bwp_reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bwp_reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(bwp_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bwp_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+bwp_reg_table_full_sig_MC[!(bwp_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bwp_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with BW - percentile")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with BW - percentile")
+```
+###neonatal-comp
+```{r}
+neo_comp_zscore <- z_score(test_prs$neonatal_comp_total)
+neo_comp_reg_table_full <- as.data.frame(t(sapply(test_prs[, grepl("centiles", names(test_prs))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ neo_comp_zscore)
+  summary <- summary(lm)
+  
+  c(neo_comp_beta = summary$coefficients[2,1], neo_comp_p = summary$coefficients[2,4])
+})))
+
+neo_comp_reg_table_full_sig <- neo_comp_reg_table_full %>% filter(neo_comp_p < 0.05)
+neo_comp_reg_table_full$neo_comp_p_adj <- p.adjust(neo_comp_reg_table_full$neo_comp_p, method = "BH")
+neo_comp_reg_table_full_sig_MC <- neo_comp_reg_table_full %>% filter(neo_comp_p_adj < 0.05)
+```
+
+```{r}
+neo_comp_reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(neo_comp_reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(neo_comp_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(neo_comp_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+neo_comp_reg_table_full_sig_MC[!(neo_comp_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(neo_comp_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = neo_comp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with Neonatal Comp.")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = neo_comp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with Neonatal Comp.")
+```
+###PRS-bw
+```{r}
+bw_pgs_zscore <- as.data.frame(sapply(test_prs[,c("bw_pgs", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10")], function(x) {z_score(x)}))
+
+bw_pgs_reg_table_full <- as.data.frame(t(sapply(test_prs[, grepl("centiles", names(test_prs))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_pgs_zscore$bw_pgs + 
+ bw_pgs_zscore$PC1 + bw_pgs_zscore$PC2 + bw_pgs_zscore$PC3 + bw_pgs_zscore$PC4 + bw_pgs_zscore$PC5 + bw_pgs_zscore$PC6 + bw_pgs_zscore$PC7 + bw_pgs_zscore$PC8 + bw_pgs_zscore$PC9 + bw_pgs_zscore$PC10)
+  summary <- summary(lm)
+  
+  c(bw_pgs_beta = summary$coefficients[2,1], bw_pgs_p = summary$coefficients[2,4])
+})))
+
+bw_pgs_reg_table_full_sig <- bw_pgs_reg_table_full %>% filter(bw_pgs_p < 0.05)
+bw_pgs_reg_table_full$bw_pgs_p_adj <- p.adjust(bw_pgs_reg_table_full$bw_pgs_p, method = "BH")
+bw_pgs_reg_table_full_sig_MC <- bw_pgs_reg_table_full %>% filter(bw_pgs_p_adj < 0.05)
+```
+
+```{r}
+bw_pgs_reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(bw_pgs_reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(bw_pgs_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(bw_pgs_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+bw_pgs_reg_table_full_sig_MC[!(bw_pgs_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(bw_pgs_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with BW_pgs")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with BW_pgs")
+```
+
+###general P-factor
+```{r}
+gp_zscore <- z_score(test_prs$General_p)
+gp_reg_table_full <- as.data.frame(t(sapply(test_prs[, grepl("centiles", names(test_prs))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ gp_zscore)
+  summary <- summary(lm)
+  
+  c(gp_beta = summary$coefficients[2,1], gp_p = summary$coefficients[2,4])
+})))
+
+gp_reg_table_full_sig <- gp_reg_table_full %>% filter(gp_p < 0.05)
+gp_reg_table_full$gp_p_adj <- p.adjust(gp_reg_table_full$gp_p, method = "BH")
+gp_reg_table_full_sig_MC <- gp_reg_table_full %>% filter(gp_p_adj < 0.05)
+```
+
+```{r}
+gp_reg_table_full_sig_MC$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(gp_reg_table_full_sig_MC)), name_mapping$abbreviation)]
+
+#merge with atlas data
+plot_data_dkt <- merge(gp_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(gp_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+gp_reg_table_full_sig_MC[!(gp_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(gp_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = gp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Cortical Regions with gp")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = gp_beta)) +
+  scale_fill_gradient2() +
+  theme_void() +
+  labs(title = "Subcortical with gp")
+```
+##Plot Beta Ranges and Compare Betas
+###Gestational Age univariate, Gestational Age + Birth Weight model comparisons
+```{r}
+#univariate x~ga regression
+reg_table_full_sig_MC$ga_lower <- (reg_table_full_sig_MC$ga_beta - 1.96*reg_table_full_sig_MC$ga_se)
+reg_table_full_sig_MC$ga_upper <- (reg_table_full_sig_MC$ga_beta + 1.96*reg_table_full_sig_MC$ga_se)
+reg_table_full_sig_MC <- reg_table_full_sig_MC %>% mutate(lm = "ga_uni")
+
+#multivariate x~ga*bw regression, significant for ga_beta
+ga_reg_table_full_sig_MC$ga_lower <- (ga_reg_table_full_sig_MC$ga_beta - 1.96*ga_reg_table_full_sig_MC$ga_se)
+ga_reg_table_full_sig_MC$ga_upper <- (ga_reg_table_full_sig_MC$ga_beta + 1.96*ga_reg_table_full_sig_MC$ga_se)
+ga_reg_table_full_sig_MC_plot <- ga_reg_table_full_sig_MC %>% mutate(lm = "gabw_cov") %>% select(all_of(names(reg_table_full_sig_MC)))
+
+#combine tables
+combined_reg_table <- rbind(reg_table_full_sig_MC, ga_reg_table_full_sig_MC_plot)
+```
+####plot betas with 95% CI
+```{r}
+ggplot() + geom_pointrange(data = reg_table_full_sig_MC, aes(y = label, x = ga_beta, xmin = ga_lower, xmax = ga_upper, color = blue)) +
+  geom_pointrange(data = reg_table_full_sig_MC, aes(y = label, x = ga_beta, xmin = ga_lower, xmax = ga_upper, color = red)) +
+  theme_minimal() +
+  xlab("Beta Coefficient") +
+  ggtitle("GA with Centile Scores")
+
+# Plot
+ggplot(combined_reg_table, aes(y = label, x = ga_beta, xmin = ga_lower, xmax = ga_upper, color = lm)) +
+geom_pointrange(size = 0.3) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 5, margin = margin(r = 10)),  # space labels
+        axis.title.y = element_text(margin = margin(r = 15))             # space title
+        ) +
+  scale_y_discrete(expand = expansion(mult = c(0.1, 0.1))) +
+  scale_color_manual(values = c("ga_uni" = "blue", "gabw_cov" = "magenta")) +
+  labs(x = "Beta Estimate", y = "Phenotype", color = "Regression Type")
+
+```
+
+###BW univariate, BW + BW+bw-pgs model comparisons
+```{r}
+#univariate x~ga regression
+bw_reg_table_full_sig_MC$bw_lower <- (bw_reg_table_full_sig_MC$bw_beta - 1.96*bw_reg_table_full_sig_MC$bw_se)
+bw_reg_table_full_sig_MC$bw_upper <- (bw_reg_table_full_sig_MC$bw_beta + 1.96*bw_reg_table_full_sig_MC$bw_se)
+bw_reg_table_full_sig_MC <- bw_reg_table_full_sig_MC %>% mutate(lm = "bw_uni")
+
+#multivariate x~ga*bw regression, significant for ga_beta
+bw_pgs_reg_table_full_sig_MC$bw_lower <- (bw_pgs_reg_table_full_sig_MC$bw_beta - 1.96*bw_pgs_reg_table_full_sig_MC$bw_se)
+bw_pgs_reg_table_full_sig_MC$bw_upper <- (bw_pgs_reg_table_full_sig_MC$bw_beta + 1.96*bw_pgs_reg_table_full_sig_MC$bw_se)
+bw_pgs_reg_table_full_sig_MC_plot <- bw_pgs_reg_table_full_sig_MC %>% mutate(lm = "bwpgs_cov") %>% select(all_of(names(bw_reg_table_full_sig_MC)))
+
+#combine tables
+combined_reg_table <- rbind(bw_reg_table_full_sig_MC, bw_pgs_reg_table_full_sig_MC_plot)
+
+# Z-test to statistically test change in betas
+shared_phenotypes <- bw_reg_table_full_sig_MC$label[bw_reg_table_full_sig_MC$label %in% bw_pgs_reg_table_full_sig_MC$label]
+ztest_df <- data.frame(phenotype = character(length(shared_phenotypes)), 
+                        label = character(length(shared_phenotypes)), 
+                        p_value = numeric(length(shared_phenotypes)))
+for(i in 1:length(shared_phenotypes)){
+  beta1 = bw_reg_table_full_sig_MC[which(bw_reg_table_full_sig_MC$label == shared_phenotypes[i]), "bw_beta"]
+  se1 = bw_reg_table_full_sig_MC[which(bw_reg_table_full_sig_MC$label == shared_phenotypes[i]), "bw_se"]
+  beta2 = bw_pgs_reg_table_full_sig_MC[which(bw_pgs_reg_table_full_sig_MC$label == shared_phenotypes[i]), "bw_beta"]
+  se2 = bw_pgs_reg_table_full_sig_MC[which(bw_pgs_reg_table_full_sig_MC$label == shared_phenotypes[i]), "bw_se"]
+  z <- (beta1 - beta2) / sqrt(se1^2 + se2^2)
+  # One-tailed p-value for testing if beta2 is significantly smaller than beta1 
+  #(bw_beta smaller when bw-pgs is included in the model)
+  p_value <- pnorm(z)
+  # #Two tailed
+  # p_value <- 2 * pnorm(-abs(z))
+  ztest_df$label[i] <- shared_phenotypes[i]
+  ztest_df$phenotype[i] <- rownames(bw_reg_table_full_sig_MC[which(bw_reg_table_full_sig_MC$label == shared_phenotypes[i]),])
+  ztest_df$p_value[i] <- p_value
+}
+```
+####plot betas with 95% CI
+```{r}
+ggplot(combined_reg_table %>% filter(label %in% shared_phenotypes), aes(y = label, x = bw_beta, xmin = bw_lower, xmax = bw_upper, color = lm)) +
+geom_pointrange(size = 0.3) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 5, margin = margin(r = 10)),  # space labels
+        axis.title.y = element_text(margin = margin(r = 15))             # space title
+        ) +
+  scale_y_discrete(expand = expansion(mult = c(0.1, 0.1))) +
+  scale_color_manual(values = c("bw_uni" = "blue", "bwpgs_cov" = "magenta")) +
+  labs(x = "Beta Estimate", y = "Phenotype", color = "Regression Type")
+
+```
+
+###BWpgs univariate, BW-pgs and BW model comparisons
+```{r}
+#univariate x~bw-pgs regression
+bw_pgs_reg_table_full_sig_MC$bw_lower <- (bw_pgs_reg_table_full_sig_MC$bw_pgs_beta - 1.96*bw_pgs_reg_table_full_sig_MC$bw_pgs_se)
+bw_pgs_reg_table_full_sig_MC$bw_upper <- (bw_pgs_reg_table_full_sig_MC$bw_pgs_beta + 1.96*bw_pgs_reg_table_full_sig_MC$bw_pgs_se)
+bw_pgs_reg_table_full_sig_MC <- bw_pgs_reg_table_full_sig_MC %>% mutate(lm = "bwpgs_uni")
+
+#multivariate x~bw-pgs + bwpercentile regression, significant for ga_beta
+bw_bwpgs_reg_table_full_sig_MC$bw_lower <- (bw_bwpgs_reg_table_full_sig_MC$bw_pgs_beta - 1.96*bw_bwpgs_reg_table_full_sig_MC$bw_pgs_se)
+bw_bwpgs_reg_table_full_sig_MC$bw_upper <- (bw_bwpgs_reg_table_full_sig_MC$bw_pgs_beta + 1.96*bw_bwpgs_reg_table_full_sig_MC$bw_pgs_se)
+bw_bwpgs_reg_table_full_sig_MC_plot <- bw_bwpgs_reg_table_full_sig_MC %>% mutate(lm = "bwpgs_cov") %>% select(all_of(names(bw_pgs_reg_table_full_sig_MC)))
+
+#combine tables
+combined_reg_table <- rbind(bw_pgs_reg_table_full_sig_MC, bw_bwpgs_reg_table_full_sig_MC_plot)
+
+# Z-test to statistically test change in betas
+shared_phenotypes <- bw_pgs_reg_table_full_sig_MC$label[bw_pgs_reg_table_full_sig_MC$label %in% bw_bwpgs_reg_table_full_sig_MC$label]
+ztest_df <- data.frame(phenotype = character(length(shared_phenotypes)), 
+                        label = character(length(shared_phenotypes)), 
+                        p_value = numeric(length(shared_phenotypes)))
+for(i in 1:length(shared_phenotypes)){
+  beta1 = bw_pgs_reg_table_full_sig_MC[which(bw_pgs_reg_table_full_sig_MC$label == shared_phenotypes[i]), "bw_pgs_beta"]
+  se1 = bw_pgs_reg_table_full_sig_MC[which(bw_pgs_reg_table_full_sig_MC$label == shared_phenotypes[i]), "bw_pgs_se"]
+  beta2 = bw_bwpgs_reg_table_full_sig_MC[which(bw_bwpgs_reg_table_full_sig_MC$label == shared_phenotypes[i]), "bw_pgs_beta"]
+  se2 = bw_pgs_reg_table_full_sig_MC[which(bw_bwpgs_reg_table_full_sig_MC$label == shared_phenotypes[i]), "bw_pgs_se"]
+  z <- (beta1 - beta2) / sqrt(se1^2 + se2^2)
+  # One-tailed p-value for testing if beta2 is significantly smaller than beta1 
+  #(bw_beta smaller when bw-pgs is included in the model)
+  p_value <- pnorm(z)
+  # #Two tailed
+  # p_value <- 2 * pnorm(-abs(z))
+  ztest_df$label[i] <- shared_phenotypes[i]
+  ztest_df$phenotype[i] <- rownames(bw_pgs_reg_table_full_sig_MC[which(bw_pgs_reg_table_full_sig_MC$label == shared_phenotypes[i]),])
+  ztest_df$p_value[i] <- p_value
+}
+```
+####plot betas with 95% CI
+```{r}
+ggplot(combined_reg_table %>% filter(label %in% shared_phenotypes), aes(y = label, x = bw_pgs_beta, xmin = bw_lower, xmax = bw_upper, color = lm)) +
+geom_pointrange(size = 0.3) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 5, margin = margin(r = 10)),  # space labels
+        axis.title.y = element_text(margin = margin(r = 15))             # space title
+        ) +
+  scale_y_discrete(expand = expansion(mult = c(0.1, 0.1))) +
+  scale_color_manual(values = c("bwpgs_uni" = "blue", "bwpgs_cov" = "magenta")) +
+  labs(x = "Beta Estimate", y = "Phenotype", color = "Regression Type")
+
+```
+###BWpgs univariate, BW-pgs and BW model comparisons -- ALL phenotypes, regardless of significance
+```{r}
+#univariate x~bw-pgs regression
+bw_pgs_reg_table_full$bw_lower <- (bw_pgs_reg_table_full$bw_pgs_beta - 1.96*bw_pgs_reg_table_full$bw_pgs_se)
+bw_pgs_reg_table_full$bw_upper <- (bw_pgs_reg_table_full$bw_pgs_beta + 1.96*bw_pgs_reg_table_full$bw_pgs_se)
+bw_pgs_reg_table_full <- bw_pgs_reg_table_full %>% mutate(lm = "bwpgs_uni")
+
+#multivariate x~bw-pgs + bwpercentile regression, significant for ga_beta
+bw_bwpgs_reg_table_full$bw_lower <- (bw_bwpgs_reg_table_full$bw_pgs_beta - 1.96*bw_bwpgs_reg_table_full$bw_pgs_se)
+bw_bwpgs_reg_table_full$bw_upper <- (bw_bwpgs_reg_table_full$bw_pgs_beta + 1.96*bw_bwpgs_reg_table_full$bw_pgs_se)
+bw_bwpgs_reg_table_full_plot <- bw_bwpgs_reg_table_full %>% mutate(lm = "bwpgs_cov") %>% select(all_of(names(bw_pgs_reg_table_full)))
+
+#combine tables
+combined_reg_table <- rbind(bw_pgs_reg_table_full, bw_bwpgs_reg_table_full_plot)
+
+# Z-test to statistically test change in betas
+shared_phenotypes <- bw_pgs_reg_table_full$label[bw_pgs_reg_table_full$label %in% bw_bwpgs_reg_table_full$label]
+ztest_df <- data.frame(phenotype = character(length(shared_phenotypes)), 
+                        label = character(length(shared_phenotypes)), 
+                        p_value = numeric(length(shared_phenotypes)))
+for(i in 1:length(shared_phenotypes)){
+  beta1 = bw_pgs_reg_table_full[which(bw_pgs_reg_table_full$label == shared_phenotypes[i]), "bw_pgs_beta"]
+  se1 = bw_pgs_reg_table_full[which(bw_pgs_reg_table_full$label == shared_phenotypes[i]), "bw_pgs_se"]
+  beta2 = bw_bwpgs_reg_table_full[which(bw_bwpgs_reg_table_full$label == shared_phenotypes[i]), "bw_pgs_beta"]
+  se2 = bw_pgs_reg_table_full[which(bw_bwpgs_reg_table_full$label == shared_phenotypes[i]), "bw_pgs_se"]
+  z <- (beta1 - beta2) / sqrt(se1^2 + se2^2)
+  # One-tailed p-value for testing if beta2 is significantly smaller than beta1 
+  #(bw_beta smaller when bw-pgs is included in the model)
+  p_value <- pnorm(z)
+  # #Two tailed
+  # p_value <- 2 * pnorm(-abs(z))
+  ztest_df$label[i] <- shared_phenotypes[i]
+  ztest_df$phenotype[i] <- rownames(bw_pgs_reg_table_full[which(bw_pgs_reg_table_full$label == shared_phenotypes[i]),])
+  ztest_df$p_value[i] <- p_value
+}
+```
+####plot betas with 95% CI
+```{r}
+ggplot(combined_reg_table %>% filter(label %in% shared_phenotypes), aes(y = label, x = bw_pgs_beta, xmin = bw_lower, xmax = bw_upper, color = lm)) +
+geom_pointrange(size = 0.3) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 5, margin = margin(r = 10)),  # space labels
+        axis.title.y = element_text(margin = margin(r = 15))             # space title
+        ) +
+  scale_y_discrete(expand = expansion(mult = c(0.1, 0.1))) +
+  scale_color_manual(values = c("bwpgs_uni" = "blue", "bwpgs_cov" = "magenta")) +
+  labs(x = "Beta Estimate", y = "Phenotype", color = "Regression Type")
+
+```
+#BW-GA 2x2 -- BW focus (high GA includes 40weeks only), includes the centile means plotting
+```{r}
+test_prs$bwga_category <- ifelse(test_prs$birth_weight_sum_oz > median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & test_prs$gestAge <= 36, "highBW_lowGA", ifelse(test_prs$birth_weight_sum_oz < median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & test_prs$gestAge >= 37, "lowBW_highGA", ifelse(test_prs$birth_weight_sum_oz < median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & test_prs$gestAge <=36, "lowBW_lowGA", ifelse(test_prs$birth_weight_sum_oz > median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & test_prs$gestAge >= 37, "highBW_highGA", NA))))
+
+test_prs$bw_highlow <- ifelse(test_prs$birth_weight_sum_oz > median(test_prs$birth_weight_sum_oz, na.rm = TRUE), "highBW", ifelse(test_prs$birth_weight_sum_oz < median(test_prs$birth_weight_sum_oz, na.rm = TRUE), "lowBW", NA))
+
+test_prs$ga_highlow <- ifelse(test_prs$gestAge <= 36, "lowGA", ifelse(test_prs$gestAge >= 37, "highGA", NA))
+
+#birthweight stats by category
+test_prs %>% group_by(bwga_category) %>% summarise(mean = mean(birth_weight_sum_oz))
+
+test_prs$bwpga_category <- ifelse(test_prs$bweight_percentile > median(test_prs$bweight_percentile, na.rm = TRUE) & test_prs$gestAge <= 36, "highBW_lowGA", ifelse(test_prs$bweight_percentile < median(test_prs$bweight_percentile, na.rm = TRUE) & test_prs$gestAge >= 37, "lowBW_highGA", ifelse(test_prs$bweight_percentile < median(test_prs$bweight_percentile, na.rm = TRUE) & test_prs$gestAge <=36, "lowBW_lowGA", ifelse(test_prs$bweight_percentile > median(test_prs$bweight_percentile, na.rm = TRUE) & test_prs$gestAge >= 37, "highBW_highGA", NA))))
+
+#birthweight stats by category
+test_prs %>% group_by(bwpga_category) %>% summarise(mean = mean(bweight_percentile))
+
+#Separate dataframes for regressions
+highBW_lowGA <- test_prs %>% filter(birth_weight_sum_oz > median(birth_weight_sum_oz, na.rm = TRUE) & gestAge <=36) #63
+
+lowBW_highGA <- test_prs %>% filter(birth_weight_sum_oz < median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & gestAge >=37)#3443
+
+lowBW_lowGA <- test_prs %>% filter(birth_weight_sum_oz < median(birth_weight_sum_oz, na.rm = TRUE) & gestAge <=36)#1345
+
+highBW_highGA <- test_prs %>% filter(birth_weight_sum_oz > median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & gestAge >=37)#4590
+```
+###visualize mean centile score for each region, use birthweight percentile
+```{r}
+#get table with means for each centile score within each bw-ga category (2x2 categories as above)
+centiles_means <- test_prs %>%
+  select(bwga_category, contains("centiles")) %>%
+  pivot_longer(cols = -bwga_category, names_to = "centiles", values_to = "value") %>%
+  group_by(bwga_category, centiles) %>%
+  summarise(mean = mean(value, na.rm = TRUE), .groups = "drop")
+#add column for label
+centiles_means$label <- name_mapping$region_name[match(sub("_centiles", "", centiles_means$centiles), name_mapping$abbreviation)]
+
+#violin plots
+# Reshape data
+df_long <- test_prs %>%
+  pivot_longer(cols = contains("centile"), names_to = "phenotype", values_to = "value")
+df_long$label <- name_mapping$region_name[match(sub("_centiles", "", df_long$phenotype), name_mapping$abbreviation)]
+
+# Split centile types into groups of 10
+phenotype_groups <- split(unique(df_long$phenotype), ceiling(seq_along(unique(df_long$phenotype)) / 12))
+
+#Anova between categories
+anova_twoway_results <- df_long %>%
+  filter(!is.na(bw_category)) %>%
+  group_by(phenotype) %>%
+  summarise(tidy(aov(value ~ bw_highlow * ga_highlow, data = cur_data())), .groups = "drop")
+
+anova_twoway_results %>% filter(term == "bw_highlow:ga_highlow" & p.value < 0.05)
+
+#T test between lowBW lowGA and lowBW high GA
+ttest_results <- df_long %>%
+  filter(bwga_category %in% c("lowBW_lowGA", "lowBW_highGA")) %>%
+  group_by(phenotype) %>%
+  summarise(tidy(t.test(value ~ bwga_category)), .groups = "drop")
+
+
+ttest_results$label <- name_mapping$region_name[match(sub("_centiles", "", ttest_results$phenotype), name_mapping$abbreviation)]
+
+ttest_results$p.value_adj <-  p.adjust(ttest_results$p.value, method = "BH")
+ttest_results %>% filter(p.value_adj < 0.05) %>% select(c(label, p.value_adj, estimate))
+
+# Create plots
+plot_list <- lapply(phenotype_groups, function(group) {
+  ggplot(filter(df_long %>% filter(!is.na(bwga_category)), phenotype %in% group), aes(x = bwga_category, y = value, color = bwga_category, fill = bwga_category)) +
+    geom_boxplot(alpha = 0.35) +
+    geom_jitter(width = 0.1, size = 0.2, alpha = 0.2) +
+    facet_wrap(~ label, scales = "fixed") +
+    theme_minimal() +
+    theme(axis.text.x =  element_blank())
+})
+
+# Display plots
+plot_list
+```
+####surface maps for cortical and subcortical regions
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(centiles_means, ggseg::dk, by = "label")
+plot_data_aseg <- merge(centiles_means, ggseg::aseg, by = "label")
+
+#PLOTS
+##Plot highBW lowGA
+# Plot using ggseg
+ggplot(plot_data_dkt %>% filter(bwga_category == "highBW_lowGA")) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = mean)) +
+  scale_fill_gradient(limits = c(0.40, 0.65)) +
+  theme_void() +
+  labs(title = "Mean, highBW low GA")
+
+ggplot(plot_data_aseg %>% filter(bwga_category == "highBW_lowGA")) +
+  geom_brain(atlas = aseg,
+             aes(fill = mean)) +
+  scale_fill_gradient(limits =  c(0.40, 0.65)) +
+  theme_void() +
+  labs(title = "Mean, highBW low GA")
+
+##Plot highBW highGA
+# Plot using ggseg
+ggplot(plot_data_dkt %>% filter(bwga_category == "highBW_highGA")) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = mean)) +
+  scale_fill_gradient(limits = c(0.40, 0.65)) +
+  theme_void() +
+  labs(title = "Mean, highBW high GA")
+
+ggplot(plot_data_aseg %>% filter(bwga_category == "highBW_highGA")) +
+  geom_brain(atlas = aseg,
+             aes(fill = mean)) +
+  scale_fill_gradient(limits =  c(0.40, 0.65)) +
+  theme_void() +
+  labs(title = "Mean, highBW high GA")
+
+##Plot lowBW highGA
+# Plot using ggseg
+ggplot(plot_data_dkt %>% filter(bwga_category == "lowBW_highGA")) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = mean)) +
+  scale_fill_gradient(limits = c(0.40, 0.65)) +
+  theme_void() +
+  labs(title = "Mean, lowBW high GA")
+
+ggplot(plot_data_aseg %>% filter(bwga_category == "lowBW_highGA")) +
+  geom_brain(atlas = aseg,
+             aes(fill = mean)) +
+  scale_fill_gradient(limits =  c(0.40, 0.65)) +
+  theme_void() +
+  labs(title = "Mean, lowBW high GA")
+
+##Plot lowBW lowGA
+# Plot using ggseg
+ggplot(plot_data_dkt %>% filter(bwga_category == "lowBW_lowGA")) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = mean)) +
+  scale_fill_gradient(limits = c(0.40, 0.65)) +
+  theme_void() +
+  labs(title = "Mean, lowBW lowGA")
+
+ggplot(plot_data_aseg %>% filter(bwga_category == "lowBW_lowGA")) +
+  geom_brain(atlas = aseg,
+             aes(fill = mean)) +
+  scale_fill_gradient(limits =  c(0.40, 0.65)) +
+  theme_void() +
+  labs(title = "Mean, lowBW lowGA")
+```
+###birth weight - lowBW high GA
+```{r}
+sum(!is.na(lowBW_highGA$birth_weight_sum_oz))
+bw_zscore <- z_score(lowBW_highGA$birth_weight_sum_oz)
+
+#Global phenotypes
+lowBWhighGA_bw_reg_table_global <- as.data.frame(t(sapply(lowBW_highGA[, which(names(lowBW_highGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+lowBWhighGA_bw_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWhighGA_bw_reg_table_global)), name_mapping$abbreviation)]
+
+lowBWhighGA_bw_reg_table_global_sig <- lowBWhighGA_bw_reg_table_global %>% filter(bw_p < 0.05)
+
+lowBWhighGA_bw_reg_table_global_sig
+
+#Regional phenotypes
+lowBWhighGA_bw_reg_table_full <- as.data.frame(t(sapply(lowBW_highGA[, which(names(lowBW_highGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+lowBWhighGA_bw_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWhighGA_bw_reg_table_full)), name_mapping$abbreviation)]
+
+lowBWhighGA_bw_reg_table_full_sig <- lowBWhighGA_bw_reg_table_full %>% filter(bw_p < 0.05)
+lowBWhighGA_bw_reg_table_full$bw_p_adj <- p.adjust(lowBWhighGA_bw_reg_table_full$bw_p, method = "BH")
+lowBWhighGA_bw_reg_table_full_sig_MC <- lowBWhighGA_bw_reg_table_full %>% filter(bw_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- lowBWhighGA_bw_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWhighGA_bw_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWhighGA_bw_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWhighGA_bw_reg_table_full_sig_MC[!(lowBWhighGA_bw_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(lowBWhighGA_bw_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW, lowBW 40 weeks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW, lowBW 40 weeks")
+```
+
+###birth weight - highBW high GA
+```{r}
+sum(!is.na(highBW_highGA$birth_weight_sum_oz))
+bw_zscore <- z_score(highBW_highGA$birth_weight_sum_oz)
+
+#Global phenotypes
+highBWhighGA_bw_reg_table_global <- as.data.frame(t(sapply(highBW_highGA[, which(names(highBW_highGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+highBWhighGA_bw_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(highBWhighGA_bw_reg_table_global)), name_mapping$abbreviation)]
+
+highBWhighGA_bw_reg_table_global_sig <- highBWhighGA_bw_reg_table_global %>% filter(bw_p < 0.05)
+
+highBWhighGA_bw_reg_table_global_sig
+
+#Regional phenotypes
+highBWhighGA_bw_reg_table_full <- as.data.frame(t(sapply(highBW_highGA[, which(names(highBW_highGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+highBWhighGA_bw_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(highBWhighGA_bw_reg_table_full)), name_mapping$abbreviation)]
+
+highBWhighGA_bw_reg_table_full_sig <- highBWhighGA_bw_reg_table_full %>% filter(bw_p < 0.05)
+highBWhighGA_bw_reg_table_full$bw_p_adj <- p.adjust(highBWhighGA_bw_reg_table_full$bw_p, method = "BH")
+highBWhighGA_bw_reg_table_full_sig_MC <- highBWhighGA_bw_reg_table_full %>% filter(bw_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- highBWhighGA_bw_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(highBWhighGA_bw_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(highBWhighGA_bw_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+highBWhighGA_bw_reg_table_full_sig_MC[!(highBWhighGA_bw_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(highBWhighGA_bw_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW, highBW 40 weeks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW, highBW 40 weeks")
+```
+
+###birth weight - low BW low GA
+```{r}
+sum(!is.na(lowBW_lowGA$birth_weight_sum_oz))
+bw_zscore <- z_score(lowBW_lowGA$birth_weight_sum_oz)
+
+#Global phenotypes
+lowBWlowGA_bw_reg_table_global <- as.data.frame(t(sapply(lowBW_lowGA[, which(names(lowBW_lowGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+lowBWlowGA_bw_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWlowGA_bw_reg_table_global)), name_mapping$abbreviation)]
+
+lowBWlowGA_bw_reg_table_global_sig <- lowBWlowGA_bw_reg_table_global %>% filter(bw_p < 0.05)
+
+lowBWlowGA_bw_reg_table_global_sig
+
+#Regional phenotypes
+lowBWlowGA_bw_reg_table_full <- as.data.frame(t(sapply(lowBW_lowGA[, which(names(lowBW_lowGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+lowBWlowGA_bw_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWlowGA_bw_reg_table_full)), name_mapping$abbreviation)]
+
+lowBWlowGA_bw_reg_table_full_sig <- lowBWlowGA_bw_reg_table_full %>% filter(bw_p < 0.05)
+lowBWlowGA_bw_reg_table_full$bw_p_adj <- p.adjust(lowBWlowGA_bw_reg_table_full$bw_p, method = "BH")
+lowBWlowGA_bw_reg_table_full_sig_MC <- lowBWlowGA_bw_reg_table_full %>% filter(bw_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- lowBWlowGA_bw_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWlowGA_bw_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWlowGA_bw_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWlowGA_bw_reg_table_full_sig_MC[!(lowBWlowGA_bw_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(lowBWlowGA_bw_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.25)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW, lowBW <=36 weeks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.25)) +
+  theme_void() +
+  labs(title = "Subcortical with BW, lowBW <= 36 weeks")
+```
+
+
+###birth weight - high BW low GA
+```{r}
+sum(!is.na(highBW_lowGA$birth_weight_sum_oz))
+bw_zscore <- z_score(highBW_lowGA$birth_weight_sum_oz)
+
+#Global phenotypes
+highBWlowGA_bw_reg_table_global <- as.data.frame(t(sapply(highBW_lowGA[, which(names(highBW_lowGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+highBWlowGA_bw_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(highBWlowGA_bw_reg_table_global)), name_mapping$abbreviation)]
+
+highBWlowGA_bw_reg_table_global_sig <- highBWlowGA_bw_reg_table_global %>% filter(bw_p < 0.05)
+
+highBWlowGA_bw_reg_table_global_sig
+
+#Regional phenotypes
+highBWlowGA_bw_reg_table_full <- as.data.frame(t(sapply(highBW_lowGA[, which(names(highBW_lowGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_zscore)
+  summary <- summary(lm)
+  
+  c(bw_beta = summary$coefficients[2,1], bw_p = summary$coefficients[2,4])
+})))
+
+highBWlowGA_bw_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(highBWlowGA_bw_reg_table_full)), name_mapping$abbreviation)]
+
+highBWlowGA_bw_reg_table_full_sig <- highBWlowGA_bw_reg_table_full %>% filter(bw_p < 0.05)
+highBWlowGA_bw_reg_table_full$bw_p_adj <- p.adjust(highBWlowGA_bw_reg_table_full$bw_p, method = "BH")
+highBWlowGA_bw_reg_table_full_sig_MC <- highBWlowGA_bw_reg_table_full %>% filter(bw_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- highBWlowGA_bw_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "bw_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+
+#BW-GA 2x2 -- GA focus (high GA includes >= 37 weeks)
+?? Maybe make centile plots and color these groups differently
+these groups include subjects born at >= 37 weeks in the "highGA" group
+```{r}
+highBW_lowGA <- test_prs %>% filter(birth_weight_sum_oz > median(birth_weight_sum_oz, na.rm = TRUE) & gestAge <=36)#63
+
+lowBW_highGA <- test_prs %>% filter(birth_weight_sum_oz < median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & gestAge > 36)#3095
+
+lowBW_lowGA <- test_prs %>% filter(birth_weight_sum_oz < median(birth_weight_sum_oz, na.rm = TRUE) & gestAge <=36)#1345
+
+highBW_highGA <- test_prs %>% filter(birth_weight_sum_oz > median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & gestAge > 36)#4590
+```
+###gestational age - lowBW high GA
+```{r}
+sum(!is.na(lowBW_highGA$gestAge))
+ga_zscore <- z_score(lowBW_highGA$gestAge)
+
+#Global phenotypes
+lowBWhighGA_ga_reg_table_global <- as.data.frame(t(sapply(lowBW_highGA[, which(names(lowBW_highGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4])
+})))
+
+lowBWhighGA_ga_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWhighGA_ga_reg_table_global)), name_mapping$abbreviation)]
+
+lowBWhighGA_ga_reg_table_global_sig <- lowBWhighGA_ga_reg_table_global %>% filter(ga_p < 0.05)
+
+lowBWhighGA_ga_reg_table_global_sig
+
+#Regional phenotypes
+lowBWhighGA_ga_reg_table_full <- as.data.frame(t(sapply(lowBW_highGA[, which(names(lowBW_highGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4])
+})))
+
+lowBWhighGA_ga_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWhighGA_ga_reg_table_full)), name_mapping$abbreviation)]
+
+lowBWhighGA_ga_reg_table_full_sig <- lowBWhighGA_ga_reg_table_full %>% filter(ga_p < 0.05)
+lowBWhighGA_ga_reg_table_full$ga_p_adj <- p.adjust(lowBWhighGA_ga_reg_table_full$ga_p, method = "BH")
+lowBWhighGA_ga_reg_table_full_sig_MC <- lowBWhighGA_ga_reg_table_full %>% filter(ga_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- lowBWhighGA_ga_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "ga_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWhighGA_ga_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWhighGA_ga_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWhighGA_ga_reg_table_full_sig_MC[!(lowBWhighGA_ga_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(lowBWhighGA_ga_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with GA, lowBW >=37wks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW, lowBW >=37wks")
+```
+plotting pre-FDR just to get an idea
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWhighGA_ga_reg_table_full_sig, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWhighGA_ga_reg_table_full_sig, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWhighGA_ga_reg_table_full_sig[!(lowBWhighGA_ga_reg_table_full_sig$label %in% plot_data_dkt$label) & !(lowBWhighGA_ga_reg_table_full_sig$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with GA, lowBW >=37wks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW, lowBW >=37wks")
+```
+###gestational age - highBW high GA --- all GA is 40weeks, cannot run correlation
+###gestational age - low BW low GA
+```{r}
+sum(!is.na(lowBW_lowGA$gestAge))
+ga_zscore <- z_score(lowBW_lowGA$gestAge)
+
+#Global phenotypes
+lowBWlowGA_ga_reg_table_global <- as.data.frame(t(sapply(lowBW_lowGA[, which(names(lowBW_lowGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4])
+})))
+
+lowBWlowGA_ga_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWlowGA_ga_reg_table_global)), name_mapping$abbreviation)]
+
+lowBWlowGA_ga_reg_table_global_sig <- lowBWlowGA_ga_reg_table_global %>% filter(ga_p < 0.05)
+
+lowBWlowGA_ga_reg_table_global_sig
+
+#Regional phenotypes
+lowBWlowGA_ga_reg_table_full <- as.data.frame(t(sapply(lowBW_lowGA[, which(names(lowBW_lowGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4])
+})))
+
+lowBWlowGA_ga_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWlowGA_ga_reg_table_full)), name_mapping$abbreviation)]
+
+lowBWlowGA_ga_reg_table_full_sig <- lowBWlowGA_ga_reg_table_full %>% filter(ga_p < 0.05)
+lowBWlowGA_ga_reg_table_full$ga_p_adj <- p.adjust(lowBWlowGA_ga_reg_table_full$ga_p, method = "BH")
+lowBWlowGA_ga_reg_table_full_sig_MC <- lowBWlowGA_ga_reg_table_full %>% filter(ga_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- lowBWlowGA_ga_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "ga_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWlowGA_ga_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWlowGA_ga_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWlowGA_ga_reg_table_full_sig_MC[!(lowBWlowGA_ga_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(lowBWlowGA_ga_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with GA, lowBW <=36 weeks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with GA, lowBW <= 36 weeks")
+```
+
+
+
+#BW-GA 2x2 -- BW-PGS focus (high GA includes 40weeks only)
+?? Maybe make centile plots and color these groups differently
+
+```{r}
+highBW_lowGA <- test_prs %>% filter(birth_weight_sum_oz > median(birth_weight_sum_oz, na.rm = TRUE) & gestAge <=36)#63
+
+lowBW_highGA <- test_prs %>% filter(birth_weight_sum_oz < median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & gestAge > 36)#3095
+
+lowBW_lowGA <- test_prs %>% filter(birth_weight_sum_oz < median(birth_weight_sum_oz, na.rm = TRUE) & gestAge <=36)#1345
+
+highBW_highGA <- test_prs %>% filter(birth_weight_sum_oz > median(test_prs$birth_weight_sum_oz, na.rm = TRUE) & gestAge > 36)#4467
+```
+###birth weight PGS - lowBW high GA
+```{r}
+sum(!is.na(lowBW_highGA$bw_pgs))
+bw_pgs_zscore <- as.data.frame(sapply(lowBW_highGA[,c("bw_pgs", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10")], function(x) {z_score(x)}))
+
+#Global Phenotypes
+lowBWhighGA_bw_pgs_reg_table_global <- as.data.frame(t(sapply(lowBW_highGA[, which(names(lowBW_highGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_pgs_zscore$bw_pgs + bw_pgs_zscore$PC1 + bw_pgs_zscore$PC2 + bw_pgs_zscore$PC3 + bw_pgs_zscore$PC4 + bw_pgs_zscore$PC5 + bw_pgs_zscore$PC6 + bw_pgs_zscore$PC7 + bw_pgs_zscore$PC8 + bw_pgs_zscore$PC9 + bw_pgs_zscore$PC10)
+  summary <- summary(lm)
+  
+  c(bw_pgs_beta = summary$coefficients[2,1], bw_pgs_p = summary$coefficients[2,4])
+})))
+
+lowBWhighGA_bw_pgs_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWhighGA_bw_pgs_reg_table_global)), name_mapping$abbreviation)]
+
+lowBWhighGA_bw_pgs_reg_table_global_sig <- lowBWhighGA_bw_pgs_reg_table_global %>% filter(bw_pgs_p < 0.05)
+
+lowBWhighGA_bw_pgs_reg_table_global_sig
+
+#Regional Phenotypes
+lowBWhighGA_bw_pgs_reg_table_full <- as.data.frame(t(sapply(lowBW_highGA[,which(names(lowBW_highGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_pgs_zscore$bw_pgs + bw_pgs_zscore$PC1 + bw_pgs_zscore$PC2 + bw_pgs_zscore$PC3 + bw_pgs_zscore$PC4 + bw_pgs_zscore$PC5 + bw_pgs_zscore$PC6 + bw_pgs_zscore$PC7 + bw_pgs_zscore$PC8 + bw_pgs_zscore$PC9 + bw_pgs_zscore$PC10)
+  summary <- summary(lm)
+  
+  c(bw_pgs_beta = summary$coefficients[2,1], bw_pgs_p = summary$coefficients[2,4])
+})))
+
+lowBWhighGA_bw_pgs_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWhighGA_bw_pgs_reg_table_full)), name_mapping$abbreviation)]
+
+lowBWhighGA_bw_pgs_reg_table_full_sig <- lowBWhighGA_bw_pgs_reg_table_full %>% filter(bw_pgs_p < 0.05)
+lowBWhighGA_bw_pgs_reg_table_full$bw_pgs_p_adj <- p.adjust(lowBWhighGA_bw_pgs_reg_table_full$bw_pgs_p, method = "BH")
+lowBWhighGA_bw_pgs_reg_table_full_sig_MC <- lowBWhighGA_bw_pgs_reg_table_full %>% filter(bw_pgs_p_adj < 0.05)
+
+#save tables of betas
+save_tables = TRUE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- lowBWhighGA_bw_pgs_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "lowBWhighGA_bw_pgs_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweightPGS_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweightPGS_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWhighGA_bw_pgs_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWhighGA_bw_pgs_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWhighGA_bw_pgs_reg_table_full_sig_MC[!(lowBWhighGA_bw_pgs_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(lowBWhighGA_bw_pgs_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW pgs, low BW >=37wks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW pgs, low BW >=37wks")
+```
+
+###birth weight PGS - lowBW low GA
+```{r}
+sum(!is.na(lowBW_lowGA$bw_pgs))
+bw_pgs_zscore <- as.data.frame(sapply(lowBW_lowGA[,c("bw_pgs", "PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10")], function(x) {z_score(x)}))
+
+#Global Phenotypes
+lowBWlowGA_bw_pgs_reg_table_global <- as.data.frame(t(sapply(lowBW_lowGA[, which(names(lowBW_lowGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_pgs_zscore$bw_pgs + bw_pgs_zscore$PC1 + bw_pgs_zscore$PC2 + bw_pgs_zscore$PC3 + bw_pgs_zscore$PC4 + bw_pgs_zscore$PC5 + bw_pgs_zscore$PC6 + bw_pgs_zscore$PC7 + bw_pgs_zscore$PC8 + bw_pgs_zscore$PC9 + bw_pgs_zscore$PC10)
+  summary <- summary(lm)
+  
+  c(bw_pgs_beta = summary$coefficients[2,1], bw_pgs_p = summary$coefficients[2,4])
+})))
+
+lowBWlowGA_bw_pgs_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWlowGA_bw_pgs_reg_table_global)), name_mapping$abbreviation)]
+
+lowBWlowGA_bw_pgs_reg_table_global_sig <- lowBWlowGA_bw_pgs_reg_table_global %>% filter(bw_pgs_p < 0.05)
+
+lowBWlowGA_bw_pgs_reg_table_global_sig
+
+#Regional Phenotypes
+lowBWlowGA_bw_pgs_reg_table_full <- as.data.frame(t(sapply(lowBW_lowGA[,which(names(lowBW_lowGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ bw_pgs_zscore$bw_pgs + bw_pgs_zscore$PC1 + bw_pgs_zscore$PC2 + bw_pgs_zscore$PC3 + bw_pgs_zscore$PC4 + bw_pgs_zscore$PC5 + bw_pgs_zscore$PC6 + bw_pgs_zscore$PC7 + bw_pgs_zscore$PC8 + bw_pgs_zscore$PC9 + bw_pgs_zscore$PC10)
+  summary <- summary(lm)
+  
+  c(bw_pgs_beta = summary$coefficients[2,1], bw_pgs_p = summary$coefficients[2,4])
+})))
+
+lowBWlowGA_bw_pgs_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWlowGA_bw_pgs_reg_table_full)), name_mapping$abbreviation)]
+
+lowBWlowGA_bw_pgs_reg_table_full_sig <- lowBWlowGA_bw_pgs_reg_table_full %>% filter(bw_pgs_p < 0.05)
+lowBWlowGA_bw_pgs_reg_table_full$bw_pgs_p_adj <- p.adjust(lowBWlowGA_bw_pgs_reg_table_full$bw_pgs_p, method = "BH")
+lowBWlowGA_bw_pgs_reg_table_full_sig_MC <- lowBWlowGA_bw_pgs_reg_table_full %>% filter(bw_pgs_p_adj < 0.05)
+
+#save tables of betas
+save_tables = TRUE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- lowBWlowGA_bw_pgs_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "lowBWlowGA_bw_pgs_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweightPGS_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweightPGS_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+showing pre-FDR
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWlowGA_bw_pgs_reg_table_full_sig, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWlowGA_bw_pgs_reg_table_full_sig, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWlowGA_bw_pgs_reg_table_full_sig[!(lowBWlowGA_bw_pgs_reg_table_full_sig$label %in% plot_data_dkt$label) & !(lowBWlowGA_bw_pgs_reg_table_full_sig$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with BW pgs, low BW <37wks, pre-FDR")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = bw_pgs_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW pgs, low BW <37wks, pre-FDR")
+```
+
+
+#BW-GA 2x2 -- GA focus (high GA includes >= 37 weeks), bw division by z-scores
+?? Maybe make centile plots and color these groups differently
+these groups include subjects born at >= 37 weeks in the "highGA" group
+```{r}
+test_prs$bw_zscore <- z_score(test_prs$birth_weight_sum_oz)
+highBW_lowGA <- test_prs %>% filter(bw_zscore > 1.5 & gestAge <=36)#6
+
+lowBW_highGA <- test_prs %>% filter(bw_zscore < -1.5  & gestAge > 36)#148
+
+lowBW_lowGA <- test_prs %>% filter(bw_zscore < -1.5  & gestAge <=36)#617
+
+highBW_highGA <- test_prs %>% filter(bw_zscore > 1.5  & gestAge > 36)#516
+```
+###gestational age - lowBW high GA
+```{r}
+sum(!is.na(lowBW_highGA$gestAge))
+ga_zscore <- z_score(lowBW_highGA$gestAge)
+
+#Global phenotypes
+lowBWhighGA_ga_reg_table_global <- as.data.frame(t(sapply(lowBW_highGA[, which(names(lowBW_highGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4])
+})))
+
+lowBWhighGA_ga_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWhighGA_ga_reg_table_global)), name_mapping$abbreviation)]
+
+lowBWhighGA_ga_reg_table_global_sig <- lowBWhighGA_ga_reg_table_global %>% filter(ga_p < 0.05)
+
+lowBWhighGA_ga_reg_table_global_sig
+
+#Regional phenotypes
+lowBWhighGA_ga_reg_table_full <- as.data.frame(t(sapply(lowBW_highGA[, which(names(lowBW_highGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4])
+})))
+
+lowBWhighGA_ga_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWhighGA_ga_reg_table_full)), name_mapping$abbreviation)]
+
+lowBWhighGA_ga_reg_table_full_sig <- lowBWhighGA_ga_reg_table_full %>% filter(ga_p < 0.05)
+lowBWhighGA_ga_reg_table_full$ga_p_adj <- p.adjust(lowBWhighGA_ga_reg_table_full$ga_p, method = "BH")
+lowBWhighGA_ga_reg_table_full_sig_MC <- lowBWhighGA_ga_reg_table_full %>% filter(ga_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- lowBWhighGA_ga_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "ga_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWhighGA_ga_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWhighGA_ga_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWhighGA_ga_reg_table_full_sig_MC[!(lowBWhighGA_ga_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(lowBWhighGA_ga_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with GA, lowBW >=37wks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW, lowBW >=37wks")
+```
+plotting pre-FDR just to get an idea
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWhighGA_ga_reg_table_full_sig, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWhighGA_ga_reg_table_full_sig, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWhighGA_ga_reg_table_full_sig[!(lowBWhighGA_ga_reg_table_full_sig$label %in% plot_data_dkt$label) & !(lowBWhighGA_ga_reg_table_full_sig$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with GA, lowBW >=37wks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with BW, lowBW >=37wks")
+```
+###gestational age - highBW high GA --- all GA is 40weeks, cannot run correlation
+###gestational age - low BW low GA
+```{r}
+sum(!is.na(lowBW_lowGA$gestAge))
+ga_zscore <- z_score(lowBW_lowGA$gestAge)
+
+#Global phenotypes
+lowBWlowGA_ga_reg_table_global <- as.data.frame(t(sapply(lowBW_lowGA[, which(names(lowBW_lowGA) %in% paste0(global_phenotypes, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4])
+})))
+
+lowBWlowGA_ga_reg_table_global$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWlowGA_ga_reg_table_global)), name_mapping$abbreviation)]
+
+lowBWlowGA_ga_reg_table_global_sig <- lowBWlowGA_ga_reg_table_global %>% filter(ga_p < 0.05)
+
+lowBWlowGA_ga_reg_table_global_sig
+
+#Regional phenotypes
+lowBWlowGA_ga_reg_table_full <- as.data.frame(t(sapply(lowBW_lowGA[, which(names(lowBW_lowGA) %in% paste0(phenotypes_for_MC, "_centiles"))], function(x) {
+  x_zscore <- qnorm(x)
+  lm <- lm(x_zscore ~ ga_zscore)
+  summary <- summary(lm)
+  
+  c(ga_beta = summary$coefficients[2,1], ga_p = summary$coefficients[2,4])
+})))
+
+lowBWlowGA_ga_reg_table_full$label <- name_mapping$region_name[match(sub("_centiles", "", rownames(lowBWlowGA_ga_reg_table_full)), name_mapping$abbreviation)]
+
+lowBWlowGA_ga_reg_table_full_sig <- lowBWlowGA_ga_reg_table_full %>% filter(ga_p < 0.05)
+lowBWlowGA_ga_reg_table_full$ga_p_adj <- p.adjust(lowBWlowGA_ga_reg_table_full$ga_p, method = "BH")
+lowBWlowGA_ga_reg_table_full_sig_MC <- lowBWlowGA_ga_reg_table_full %>% filter(ga_p_adj < 0.05)
+
+#save tables of betas
+save_tables = FALSE
+if(save_tables == TRUE){
+  output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/Surface_Maps/"
+  save_table_full <- lowBWlowGA_ga_reg_table_full
+  save_table_full$hemisphere <- ifelse(grepl("lh", save_table_full$label), "L", 
+                         ifelse(grepl("rh", save_table_full$label), "R", NA))
+  save_table_full$label <- sub("^rh_|lh_", "", save_table_full$label)
+  save_table_sig <- save_table_full
+  save_table_sig[which(save_table_sig$save_p_adj>0.05), "ga_beta"] <- 0
+  filename_all <- paste0(output_folder, "dsk_birthweight_all.csv")
+  filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
+  write.csv(save_table_full, filename_all)
+  write.csv(save_table_sig, filename_sig)
+}
+```
+
+```{r}
+#merge with atlas data
+plot_data_dkt <- merge(lowBWlowGA_ga_reg_table_full_sig_MC, ggseg::dk, by = "label")
+plot_data_aseg <- merge(lowBWlowGA_ga_reg_table_full_sig_MC, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+lowBWlowGA_ga_reg_table_full_sig_MC[!(lowBWlowGA_ga_reg_table_full_sig_MC$label %in% plot_data_dkt$label) & !(lowBWlowGA_ga_reg_table_full_sig_MC$label %in% plot_data_aseg$label),]
+
+# Plot using ggseg
+ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Cortical Regions with GA, lowBW <=36 weeks")
+
+ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = ga_beta)) +
+  scale_fill_gradient2(limits = c(-0.2, 0.2)) +
+  theme_void() +
+  labs(title = "Subcortical with GA, lowBW <= 36 weeks")
+```
+
