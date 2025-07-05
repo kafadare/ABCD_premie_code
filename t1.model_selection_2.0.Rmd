@@ -555,13 +555,13 @@ for(k in 1:length(breaks)){
 ```
 ####get the model with the best wormplot for each phenotype that has >5% points outside for the best BIC
 ```{r}
-sOne_refit_phenotypes <- sOne_wp_table$label
+sOne_refit_phenotypes <- sOne_wp_table %>% filter(pcnt > 0.05) %>% select(label)
 
-sOne_best %>% filter(label %in% sOne_refit_phenotypes) %>% select(c(mu_formula))
-sOne_best %>% filter(label %in% sOne_refit_phenotypes) %>% select(c(sigma_formula))
-sOne_best %>% filter(label %in% sOne_refit_phenotypes) %>% select(c(nu_formula))
+sOne_best %>% filter(label %in% sOne_refit_phenotypes$label) %>% select(c(mu_formula))
+sOne_best %>% filter(label %in% sOne_refit_phenotypes$label) %>% select(c(sigma_formula))
+sOne_best %>% filter(label %in% sOne_refit_phenotypes$label) %>% select(c(nu_formula))
 
-sOne_refit_indexes <- sOne_fits %>% filter(label %in% sOne_refit_phenotypes) %>% select(model_index)
+sOne_refit_indexes <- sOne_fits %>% filter(label %in% sOne_refit_phenotypes$label) %>% select(model_index)
 
 sOne_refit_list <- paste0(splitOne_folder,"gamlssFIT_",sOne_refit_indexes$model_index,".rds")
 refit_models_One <- lapply(sOne_refit_list, readRDS)
@@ -569,8 +569,8 @@ refit_models_One <- lapply(sOne_refit_list, readRDS)
 #inspect worm plots of the other fitted models for the above phenotypes
 plot <- FALSE
 sOne_plots_refit_wp <- vector(mode = "list", length = length(sOne_refit_list))
-sOne_wp_refit_table <- data.frame(matrix(NA, nrow = dim(sOne_best)[1], ncol = 5))
-names(sOne_wp_table) <- c("n", "n_outer", "pcnt", "phenotype", "label", "model_index")
+sOne_wp_refit_table <- data.frame(matrix(NA, nrow = dim(sOne_refit_indexes)[1], ncol = 6))
+names(sOne_wp_refit_table) <- c("n", "n_outer", "pcnt", "phenotype", "label", "model_index")
 for (i  in 1:length(refit_models_One)) {
   #print(deparse(model$mu.formula))
   model <- refit_models_One[[i]]
@@ -595,9 +595,73 @@ for(k in 1:length(breaks)){
 }
 }
 
+
+sOne_wp_refit_table <- merge(sOne_wp_refit_table, sOne_fits %>% select(c("model_index", "BIC")), all.x = TRUE, all.y = FALSE, by = "model_index")
+
+#inspect distribution of wormplots "out points"
+aggregate(pcnt ~ phenotype, data = sOne_wp_refit_table, summary)
+
+#filter lowest wormplot "out points"
 sOne_refit_best <- sOne_wp_refit_table %>%
   group_by(phenotype) %>%
   slice_min(pcnt, n = 1)
+
+#compare BIC of the refit chosen models with the BIC of the rest of the models for that phenotypes
+sOne_fits$best <- ifelse(sOne_fits$model_index %in% sOne_best$model_index | sOne_fits$model_index %in% sOne_refit_best$model_index, TRUE, FALSE)
+
+sOne_fits <- sOne_fits %>% group_by(phenotype) %>%
+  mutate(logminBICdiff = log(BIC-min(BIC))) %>%
+  mutate( minBICdiff = BIC-min(BIC)) %>%
+  mutate( BICzscore = z_score(BIC)) %>%
+  mutate(BICzscorediff = BICzscore-min(BICzscore)) %>%
+  ungroup()
+
+sOne_fits %>% filter(label %in% sOne_refit_phenotypes$label) %>%
+  ggplot(., aes(x = logminBICdiff, y = as.character(model_index), fill = best)) + 
+  geom_histogram(stat = "identity") + 
+  facet_wrap(~label, scale = "free") +
+  ggtitle("BIC for refit") + labs(x = "scaled log BIC", y = "model index")
+
+sOne_fits %>% filter(label %in% sOne_refit_phenotypes$label) %>%
+  ggplot(., aes(x = BICzscorediff, y = as.character(model_index), fill = best)) + 
+  geom_histogram(stat = "identity") + 
+  facet_wrap(~label, scale = "free") +
+  ggtitle("BIC for refit") + labs(x = "z-score diff from min BIC", y = "model index")
+
+sOne_wp_refit_table <- merge(sOne_wp_refit_table, sOne_fits %>% select(c("model_index", "logminBICdiff", "BIC", "minBICdiff", "BICzscorediff")), all.x = TRUE, all.y = FALSE, by = "model_index")
+
+sOne_wp_refit_table <- sOne_wp_refit_table %>% group_by(phenotype) %>%
+  mutate(logminNoutdiff = log(pcnt-min(pcnt))) %>%
+  mutate(minNoutdiff = pcnt - min(pcnt)) %>%
+  mutate( Noutzscore = z_score(pcnt)) %>%
+  mutate(Noutzscorediff = Noutzscore-min(Noutzscore)) %>%
+  ungroup()
+
+sOne_wp_refit_table$wpBIC_metric <- 0.3*sOne_wp_refit_table$BICzscorediff + 0.7*sOne_wp_refit_table$Noutzscorediff
+
+#sOne_wp_refit_table$wpBIC_metric <- 0.5*sOne_wp_refit_table$BIC + 0.5*sOne_wp_refit_table$pcnt
+
+sOne_refit_best2 <- sOne_wp_refit_table %>%
+  group_by(phenotype) %>%
+  slice_min(wpBIC_metric, n = 1)
+
+sOne_fits$best2 <- ifelse(sOne_fits$model_index %in% sOne_best$model_index | sOne_fits$model_index %in% sOne_refit_best2$model_index, TRUE, FALSE)
+
+sOne_fits %>% filter(label %in% sOne_refit_phenotypes$label) %>%
+  ggplot(., aes(x = logminBICdiff, y = as.character(model_index), fill = best2)) + 
+  geom_histogram(stat = "identity") + 
+  facet_wrap(~label, scale = "free") +
+  ggtitle("BIC for refit 2") + labs(x = "scaled log BIC", y = "model index")
+
+sOne_wp_refit_table$best2 <- sOne_wp_refit_table$model_index %in% sOne_refit_best2$model_index
+
+sOne_wp_refit_table %>% 
+  ggplot(., aes(x = logminNoutdiff, y = as.character(model_index), fill = best2)) + 
+  geom_histogram(stat = "identity") + 
+  facet_wrap(~label, scale = "free") +
+  ggtitle("BIC for refit 2") + labs(x = "scaled log BIC", y = "model index")
+
+
 ```
 ###sTwo
 ```{r}
