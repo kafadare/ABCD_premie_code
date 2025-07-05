@@ -1,0 +1,1095 @@
+---
+title: "model_selection"
+author: "Eren Kafadar"
+date: "2024-11-26"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+```{r setup, include=FALSE}
+diagnostics <- FALSE
+generate <- FALSE
+save_fits <- FALSE
+knitr::opts_chunk$set(echo = TRUE)
+#Load libraries
+library(dplyr)
+library(magrittr)
+library(readr)
+library(stringr)
+library(ggplot2)
+library(gamlss) #to fit model
+require(gamlss.ggplots)
+library(tidyr)
+library(gamlssTools) #Margaret's package
+library(gridExtra)
+library(ggseg)
+
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/inspect_model_fits.R")
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/gamlss_functions_EK.R")
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/data_functions.R")
+
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/pred_og_centile_EK.R")
+
+phenotypes <- readRDS("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/phenotype_set.rds")
+
+#df to map variable names onto names displayed on figures
+name_mapping <- data.frame(
+  abbreviation = c(
+     "smri_vol_cdk_totallh", "smri_vol_cdk_totalrh", "smri_vol_cdk_total",   
+     "totalWM_cb", "totalWM_crb", "totalGM_crb",
+     
+    "smri_vol_scs_cbwmatterlh", "smri_vol_scs_ltventriclelh", "smri_vol_scs_inflatventlh",
+    "smri_vol_scs_crbwmatterlh", "smri_vol_scs_crbcortexlh", "smri_vol_scs_tplh",
+    "smri_vol_scs_caudatelh", "smri_vol_scs_putamenlh", "smri_vol_scs_pallidumlh",
+    "smri_vol_scs_3rdventricle", "smri_vol_scs_4thventricle", "smri_vol_scs_bstem",
+    "smri_vol_scs_hpuslh", "smri_vol_scs_amygdalalh", "smri_vol_scs_csf",
+    "smri_vol_scs_lesionlh", "smri_vol_scs_aal", "smri_vol_scs_vedclh",
+    
+    "smri_vol_scs_cbwmatterrh", "smri_vol_scs_ltventriclerh", "smri_vol_scs_inflatventrh",
+    "smri_vol_scs_crbwmatterrh", "smri_vol_scs_crbcortexrh", "smri_vol_scs_tprh",
+    "smri_vol_scs_caudaterh", "smri_vol_scs_putamenrh", "smri_vol_scs_pallidumrh",
+    "smri_vol_scs_hpusrh", "smri_vol_scs_amygdalarh", "smri_vol_scs_lesionrh",
+    "smri_vol_scs_aar", "smri_vol_scs_vedcrh", 
+    
+    "smri_vol_scs_wmhint",
+    "smri_vol_scs_wmhintlh", "smri_vol_scs_wmhintrh", 
+    
+    "smri_vol_scs_ccps",
+    "smri_vol_scs_ccmidps", "smri_vol_scs_ccct", "smri_vol_scs_ccmidat",
+    "smri_vol_scs_ccat", 
+    
+    "smri_vol_scs_wholeb", "smri_vol_scs_latventricles",
+    "smri_vol_scs_allventricles", "smri_vol_scs_intracranialv", "smri_vol_scs_suprateialv",
+    "smri_vol_scs_subcorticalgv",
+    
+    "smri_vol_cdk_banksstslh", "smri_vol_cdk_cdacatelh", "smri_vol_cdk_cdmdfrlh",
+    "smri_vol_cdk_cuneuslh", "smri_vol_cdk_ehinallh", "smri_vol_cdk_fusiformlh",
+    "smri_vol_cdk_ifpllh", "smri_vol_cdk_iftmlh", "smri_vol_cdk_ihcatelh",
+    "smri_vol_cdk_locclh", "smri_vol_cdk_lobfrlh", "smri_vol_cdk_linguallh",
+    "smri_vol_cdk_mobfrlh", "smri_vol_cdk_mdtmlh", "smri_vol_cdk_parahpallh",
+    "smri_vol_cdk_paracnlh", "smri_vol_cdk_parsopclh", "smri_vol_cdk_parsobislh",
+    "smri_vol_cdk_parstgrislh", "smri_vol_cdk_pericclh", "smri_vol_cdk_postcnlh",
+    "smri_vol_cdk_ptcatelh", "smri_vol_cdk_precnlh", "smri_vol_cdk_pclh",
+    "smri_vol_cdk_rracatelh", "smri_vol_cdk_rrmdfrlh", "smri_vol_cdk_sufrlh",
+    "smri_vol_cdk_supllh", "smri_vol_cdk_sutmlh", "smri_vol_cdk_smlh",
+    "smri_vol_cdk_frpolelh", "smri_vol_cdk_tmpolelh", "smri_vol_cdk_trvtmlh",
+    "smri_vol_cdk_insulalh",
+    
+     "smri_vol_cdk_banksstsrh", "smri_vol_cdk_cdacaterh", "smri_vol_cdk_cdmdfrrh",
+    "smri_vol_cdk_cuneusrh", "smri_vol_cdk_ehinalrh", "smri_vol_cdk_fusiformrh",
+    "smri_vol_cdk_ifplrh", "smri_vol_cdk_iftmrh", "smri_vol_cdk_ihcaterh",
+    "smri_vol_cdk_loccrh", "smri_vol_cdk_lobfrrh", "smri_vol_cdk_lingualrh",
+    "smri_vol_cdk_mobfrrh", "smri_vol_cdk_mdtmrh", "smri_vol_cdk_parahpalrh",
+    "smri_vol_cdk_paracnrh", "smri_vol_cdk_parsopcrh", "smri_vol_cdk_parsobisrh",
+    "smri_vol_cdk_parstgrisrh", "smri_vol_cdk_periccrh", "smri_vol_cdk_postcnrh",
+    "smri_vol_cdk_ptcaterh", "smri_vol_cdk_precnrh", "smri_vol_cdk_pcrh",
+    "smri_vol_cdk_rracaterh", "smri_vol_cdk_rrmdfrrh", "smri_vol_cdk_sufrrh",
+    "smri_vol_cdk_suplrh", "smri_vol_cdk_sutmrh", "smri_vol_cdk_smrh",
+    "smri_vol_cdk_frpolerh", "smri_vol_cdk_tmpolerh", "smri_vol_cdk_trvtmrh",
+    "smri_vol_cdk_insularh"
+  ),
+  region_name = c(
+    "Left-Cerebral_Cortex", "Right-Cerebral-Cortex", "Total-Cerebral-Cortex",
+    "Total_Cerebral-WM", "Total_Cerebellum-WM", "Total-Cerebellum-Cortex",
+    
+    "Left-Cerebral-White-Matter", "Left-Lateral-Ventricle", "Left-Inf-Lat-Vent",
+    "Left-Cerebellum-White-Matter", "Left-Cerebellum-Cortex", "Left-Thalamus-Proper",
+    "Left-Caudate", "Left-Putamen", "Left-Pallidum",
+    "x3rd-ventricle", "x4th-ventricle", "Brain-Stem",
+    "Left-Hippocampus", "Left-Amygdala", "Cerebrospinal-Fluid",
+    "Left-Lesion", "Left-Accumbens-Area", "Left-VentralDC",
+    
+   "Right-Cerebral-White-Matter", "Right-Lateral-Ventricle", "Right-Inf-Lat-Vent",
+    "Right-Cerebellum-White-Matter", "Right-Cerebellum-Cortex", "Right-Thalamus-Proper",
+    "Right-Caudate", "Right-Putamen", "Right-Pallidum",
+    "Right-Hippocampus", "Right-Amygdala",
+    "Right-Lesion", "Right-Accumbens-Area", "Right-VentralDC",
+    
+    "WM-Hypointensities","Left-WM-Hypointensities", "Right-WM-Hypointensities",
+   
+   "CC_Posterior","CC_Mid_Posterior", "CC_Central", "CC_Mid_Anterior",
+    "CC_Anterior", 
+   
+   "WholeBrain", "LatVentricles","AllVentricles", "IntracranialVolume", 
+   "SupratentorialVolume", "SubcorticalGrayVolume",
+   
+     "lh_bankssts", "lh_caudalanteriorcingulate", "lh_caudalmiddlefrontal",
+    "lh_cuneus", "lh_entorhinal", "lh_fusiform",
+    "lh_inferiorparietal", "lh_inferiortemporal", "lh_isthmuscingulate",
+    "lh_lateraloccipital", "lh_lateralorbitofrontal", "lh_lingual",
+    "lh_medialorbitofrontal", "lh_middletemporal", "lh_parahippocampal",
+    "lh_paracentral", "lh_parsopercularis", "lh_parsorbitalis",
+    "lh_parstriangularis", "lh_pericalcarine", "lh_postcentral",
+    "lh_posteriorcingulate", "lh_precentral", "lh_precuneus", "lh_rostralanteriorcingulate",
+    "lh_rostralmiddlefrontal", "lh_superiorfrontal", "lh_superiorparietal",
+    "lh_superiortemporal", "lh_supramarginal", "lh_frontalpole",
+    "lh_temporalpole", "lh_transversetemporal", "lh_insula",
+   
+     "rh_bankssts", "rh_caudalanteriorcingulate", "rh_caudalmiddlefrontal",
+    "rh_cuneus", "rh_entorhinal", "rh_fusiform",
+    "rh_inferiorparietal", "rh_inferiortemporal", "rh_isthmuscingulate",
+    "rh_lateraloccipital", "rh_lateralorbitofrontal", "rh_lingual",
+    "rh_medialorbitofrontal", "rh_middletemporal", "rh_parahippocampal",
+    "rh_paracentral", "rh_parsopercularis", "rh_parsorbitalis",
+    "rh_parstriangularis", "rh_pericalcarine", "rh_postcentral",
+    "rh_posteriorcingulate", "rh_precentral", "rh_precuneus", "rh_rostralanteriorcingulate",
+    "rh_rostralmiddlefrontal", "rh_superiorfrontal", "rh_superiorparietal",
+    "rh_superiortemporal", "rh_supramarginal", "rh_frontalpole",
+    "rh_temporalpole", "rh_transversetemporal", "rh_insula"
+    )
+)
+
+phenotypes_for_MC <- c(
+    "smri_vol_scs_ltventriclelh", "smri_vol_scs_inflatventlh",
+    "smri_vol_scs_crbwmatterlh", "smri_vol_scs_crbcortexlh", "smri_vol_scs_tplh",
+    "smri_vol_scs_caudatelh", "smri_vol_scs_putamenlh", "smri_vol_scs_pallidumlh",
+    "smri_vol_scs_3rdventricle", "smri_vol_scs_4thventricle", "smri_vol_scs_bstem",
+    "smri_vol_scs_hpuslh", "smri_vol_scs_amygdalalh", "smri_vol_scs_aal", "smri_vol_scs_vedclh",
+    
+    "smri_vol_scs_ltventriclerh", "smri_vol_scs_inflatventrh",
+    "smri_vol_scs_crbwmatterrh", "smri_vol_scs_crbcortexrh", "smri_vol_scs_tprh",
+    "smri_vol_scs_caudaterh", "smri_vol_scs_putamenrh", "smri_vol_scs_pallidumrh",
+    "smri_vol_scs_hpusrh", "smri_vol_scs_amygdalarh",
+    "smri_vol_scs_aar", "smri_vol_scs_vedcrh", 
+    
+    "smri_vol_scs_ccps",
+    "smri_vol_scs_ccmidps", "smri_vol_scs_ccct", "smri_vol_scs_ccmidat",
+    "smri_vol_scs_ccat",
+    
+    "smri_vol_cdk_banksstslh", "smri_vol_cdk_cdacatelh", "smri_vol_cdk_cdmdfrlh",
+    "smri_vol_cdk_cuneuslh", "smri_vol_cdk_ehinallh", "smri_vol_cdk_fusiformlh",
+    "smri_vol_cdk_ifpllh", "smri_vol_cdk_iftmlh", "smri_vol_cdk_ihcatelh",
+    "smri_vol_cdk_locclh", "smri_vol_cdk_lobfrlh", "smri_vol_cdk_linguallh",
+    "smri_vol_cdk_mobfrlh", "smri_vol_cdk_mdtmlh", "smri_vol_cdk_parahpallh",
+    "smri_vol_cdk_paracnlh", "smri_vol_cdk_parsopclh", "smri_vol_cdk_parsobislh",
+    "smri_vol_cdk_parstgrislh", "smri_vol_cdk_pericclh", "smri_vol_cdk_postcnlh",
+    "smri_vol_cdk_ptcatelh", "smri_vol_cdk_precnlh", "smri_vol_cdk_pclh",
+    "smri_vol_cdk_rracatelh", "smri_vol_cdk_rrmdfrlh", "smri_vol_cdk_sufrlh",
+    "smri_vol_cdk_supllh", "smri_vol_cdk_sutmlh", "smri_vol_cdk_smlh",
+    "smri_vol_cdk_frpolelh", "smri_vol_cdk_tmpolelh", "smri_vol_cdk_trvtmlh",
+    "smri_vol_cdk_insulalh",
+    
+     "smri_vol_cdk_banksstsrh", "smri_vol_cdk_cdacaterh", "smri_vol_cdk_cdmdfrrh",
+    "smri_vol_cdk_cuneusrh", "smri_vol_cdk_ehinalrh", "smri_vol_cdk_fusiformrh",
+    "smri_vol_cdk_ifplrh", "smri_vol_cdk_iftmrh", "smri_vol_cdk_ihcaterh",
+    "smri_vol_cdk_loccrh", "smri_vol_cdk_lobfrrh", "smri_vol_cdk_lingualrh",
+    "smri_vol_cdk_mobfrrh", "smri_vol_cdk_mdtmrh", "smri_vol_cdk_parahpalrh",
+    "smri_vol_cdk_paracnrh", "smri_vol_cdk_parsopcrh", "smri_vol_cdk_parsobisrh",
+    "smri_vol_cdk_parstgrisrh", "smri_vol_cdk_periccrh", "smri_vol_cdk_postcnrh",
+    "smri_vol_cdk_ptcaterh", "smri_vol_cdk_precnrh", "smri_vol_cdk_pcrh",
+    "smri_vol_cdk_rracaterh", "smri_vol_cdk_rrmdfrrh", "smri_vol_cdk_sufrrh",
+    "smri_vol_cdk_suplrh", "smri_vol_cdk_sutmrh", "smri_vol_cdk_smrh",
+    "smri_vol_cdk_frpolerh", "smri_vol_cdk_tmpolerh", "smri_vol_cdk_trvtmrh",
+    "smri_vol_cdk_insularh"
+  )
+
+global_phenotypes <- c("smri_vol_cdk_total", "totalWM_cb", "smri_vol_scs_allventricles", "smri_vol_scs_subcorticalgv")
+
+phenotypes_to_fit <- paste0(c(phenotypes_for_MC, global_phenotypes, "smri_vol_scs_wholeb", "smri_vol_scs_intracranialv", "totalWM_crb", "totalGM_crb", "smri_vol_scs_csf", "smri_vol_cdk_totallh", "smri_vol_cdk_totalrh", "smri_vol_scs_cbwmatterlh", "smri_vol_scs_cbwmatterrh"), ".t2")
+
+```
+
+#GENERATE Models
+
+```{r}
+generate = FALSE
+if (generate == TRUE){
+family_set <- c("GG")
+phenotype_set <- phenotypes_to_fit
+out_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_models_long_vol_2.0/"
+
+terms_mu = c("~1", "age", "sex", "random(site)", "interscan_months_t1t2", "age:sex")
+terms_sigma = c("~1", "age", "sex")
+terms_nu = c("~1", "age", "sex")
+terms_tau = c("~1")
+
+generate_gamlss_models(phenotype_set, 
+                                   out_folder, 
+                                   family_set = family_set,
+                                   mu_terms = terms_mu,
+                                   sigma_terms = terms_sigma,
+                                   nu_terms = terms_nu,
+                                   tau_terms = terms_tau,
+                                   long = TRUE,
+                                   n_crit = 200)
+}
+```
+
+Run fits submitting an array job.
+split 1
+sbatch array_script_submit.sh submit_gamlss_fits_ABCD_ONE.sh /mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_models_long_vol_2.0 "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_models_long_vol_2.0/" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1_2.0/abcd_long_Onetrain2025-06-16.csv" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_fits_long_vol_splitONE_2.0/" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_fits_long_vol_splitONE_2.0/gamlss_fits_stats" "long"
+
+split 2
+sbatch array_script_submit.sh submit_gamlss_fits_ABCD_TWO.sh /mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_models_long_vol_2.0 "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_models_long_vol_2.0/" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1_2.0/abcd_long_Twotrain2025-06-16.csv" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_fits_long_vol_splitTWO_2.0/" "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_fits_long_vol_splitTWO_2.0/gamlss_fits_stats" "long"
+
+
+#SETUP Data
+##Define files
+```{r}
+#file paths
+splitOne_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_fits_long_vol_splitONE_2.0/"
+splitTwo_folder <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_fits_long_vol_splitTWO_2.0/"
+sOne_fits_stats_filename <- paste0(splitOne_folder, "gamlss_fits_stats_all.csv")
+sTwo_fits_stats_filename <- paste0(splitTwo_folder, "gamlss_fits_stats_all.csv")
+splitOne_train_filename <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1_2.0/abcd_wide_Onetrain2025-06-17.csv"
+splitTwo_train_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1_2.0/abcd_wide_Twotrain2025-06-17.csv"
+splitOne_test_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1_2.0/abcd_wide_Onetest2025-06-17.csv"
+splitTwo_test_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/CSV/process_tables_5.1_2.0/abcd_wide_Twotest2025-06-17.csv"
+```
+## Load data frames and clean them up
+```{r}
+#rename variables and select long scans
+rename_vec <- c(age = "interview_age.t2", sex = "sex_baseline", site = "site_id_l.t2")
+
+sOne_train_df <- read.csv(splitOne_train_filename)  %>% select(-1) %>% rename(., all_of(rename_vec))
+sOne_train_df$sex <- as.factor(sOne_train_df$sex)
+sOne_train_df$site <- as.factor(sOne_train_df$site)
+sOne_train_df$age <- as.numeric(sOne_train_df$age)
+
+sTwo_train_df <- read.csv(splitTwo_train_filename)  %>% select(-1) %>% rename(., all_of(rename_vec))
+sTwo_train_df$sex <- as.factor(sTwo_train_df$sex)
+sTwo_train_df$site <- as.factor(sTwo_train_df$site)
+sTwo_train_df$age <- as.numeric(sTwo_train_df$age)
+
+sOne_test_df <- read.csv(splitOne_test_filename)  %>% select(-1) %>% rename(., all_of(rename_vec))
+sOne_test_df$sex <- as.factor(sOne_test_df$sex)
+sOne_test_df$site <- as.factor(sOne_test_df$site)
+sOne_test_df$age <- as.numeric(sOne_test_df$age)
+
+sTwo_test_df <- read.csv(splitTwo_test_filename)  %>% select(-1) %>% rename(., all_of(rename_vec))
+sTwo_test_df$sex <- as.factor(sTwo_test_df$sex)
+sTwo_test_df$site <- as.factor(sTwo_test_df$site)
+sTwo_test_df$age <- as.numeric(sTwo_test_df$age)
+```
+#FITS
+##load all fits and save
+Make a table of error messages, warnings etc
+Phenotype set should not have included wmhint, those models gave errors: all wmhint models are deleted.
+```{r}
+#save_fits = TRUE
+all_fits_filename <- "/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/long_fits.csv"
+if(save_fits == TRUE){
+sOne_fits <- inspect_model_fits(splitOne_folder, sOne_fits_stats_filename)
+sOne_fits$label <- name_mapping$region_name[match(sub(".t2", "", sOne_fits$phenotype), name_mapping$abbreviation)]
+#remove models that have age:sex interaction without age and sex main effects
+sOne_fits <- sOne_fits %>%
+  filter(!(
+    str_detect(text, "age:sex") & 
+      !(str_detect(text, "\\+ age \\+") &
+        str_detect(text, "\\+ sex \\+")))
+  )
+
+sTwo_fits <- inspect_model_fits(splitTwo_folder, sTwo_fits_stats_filename)
+sTwo_fits$label <- name_mapping$region_name[match(sub(".t2", "", sTwo_fits$phenotype), name_mapping$abbreviation)]
+#remove models that have age:sex interaction without age and sex main effects
+sTwo_fits <- sTwo_fits %>%
+  filter(!(
+    str_detect(text, "age:sex") & 
+      !(str_detect(text, "\\+ age \\+") &
+        str_detect(text, "\\+ sex \\+")))
+  )
+
+
+sOne_fits$split_no <- rep("1", dim(sOne_fits)[1])
+sTwo_fits$split_no <- rep("2", dim(sTwo_fits)[1])
+
+all_fits <- rbind(sOne_fits, sTwo_fits)
+
+write.csv(all_fits, all_fits_filename)
+}
+```
+##inspect errors
+```{r}
+#load saved fits if saved.
+if(save_fits == FALSE) {
+  all_fits <- read.csv(all_fits_filename) %>% select(-1)
+  sOne_fits <- all_fits %>% filter(split_no == 1)
+  sTwo_fits <- all_fits %>% filter(split_no == 2)
+}
+#split One fits
+ sOne_fits %>% filter(error == 1) %>% select(error_text)
+#distribution of errors among phenotypes
+table(sOne_fits %>% filter(error == 1) %>% select(phenotype))
+
+#distribution of errors among model terms
+table(sOne_fits %>% filter(error == 1) %>% select(mu_formula))
+table(sOne_fits %>% filter(error == 1) %>% select(sigma_formula))
+table(sOne_fits %>% filter(error == 1) %>% select(nu_formula))
+
+#split Two fits
+ sTwo_fits %>% filter(error == 1) %>% select(error_text)
+ 
+#distribution of errors among phenotypes
+table(sTwo_fits %>% filter(error == 1) %>% select(phenotype))
+
+#distribution of errors among model terms
+table(sTwo_fits %>% filter(error == 1) %>% select(mu_formula))
+table(sTwo_fits %>% filter(error == 1) %>% select(sigma_formula))
+table(sTwo_fits %>% filter(error == 1) %>% select(nu_formula))
+ 
+```
+##inspect convergence
+```{r}
+#split One fits
+sum(sOne_fits$convergence_warn_end == 1)
+table(sOne_fits %>% filter(convergence_warn_end == 1) %>% select(phenotype))
+#split Two fits
+sum(sTwo_fits$convergence_warn_end == 1)
+table(sTwo_fits %>% filter(convergence_warn_end == 1) %>% select(phenotype))
+```
+##load saved fits and get the models with the lowest BIC within each phenotype
+```{r}
+#load saved fits if saved.
+if(save_fits == FALSE) {
+  all_fits <- read.csv(all_fits_filename) %>% select(-1)
+  sOne_fits <- all_fits %>% filter(split_no == 1)
+  sTwo_fits <- all_fits %>% filter(split_no == 2)
+}
+
+sOne_best <- sOne_fits %>%
+  filter(convergence_warn_end == 0) %>%
+  group_by(phenotype) %>%
+ slice_min(BIC, n = 1)
+
+sTwo_best <- sTwo_fits %>%
+  filter(convergence_warn_end == 0) %>%
+  group_by(phenotype) %>%
+  slice_min(BIC, n = 1)
+```
+
+##Best Models
+###get table of which vars are chosen for which phenotype & which moment
+```{r}
+#terms
+terms_mu = c("age", "sex", "age:sex", "interscan_months_t1t2")
+terms_sigmanu = c("age", "sex")
+moments = c("mu", "sigma", "nu")
+mu_colnames = paste(terms_mu, "mu", sep = ".")
+sigmanu_colnames = apply(expand.grid(terms_sigmanu, c("sigma", "nu")), 1, paste, collapse=".")
+colnames = c(mu_colnames, sigmanu_colnames)
+
+#sOne
+sOne_best_terms <- as.data.frame(matrix(nrow = dim(sOne_best)[1], ncol=length(colnames)))
+names(sOne_best_terms) <- colnames
+rownames(sOne_best_terms) <- sOne_best$phenotype
+  for(i in 1:length(terms_mu)) {
+      sOne_best_terms[,(i)] <- grepl(terms_mu[i], sOne_best$mu_formula)
+  }
+  for(i in 1:length(terms_sigmanu)) {
+      sOne_best_terms[,(i+length(terms_mu))] <- grepl(terms_sigmanu[i], sOne_best$sigma_formula)
+      sOne_best_terms[,(i+length(terms_mu)+length(terms_sigmanu))] <- grepl(terms_sigmanu[i], sOne_best$nu_formula)
+  }
+
+sOne_best_terms$label <- name_mapping$region_name[match(sub(".t2", "", rownames(sOne_best_terms)), name_mapping$abbreviation)]
+
+#sTwo
+sTwo_best_terms <- as.data.frame(matrix(nrow = dim(sTwo_best)[1], ncol=length(colnames)))
+names(sTwo_best_terms) <- colnames
+rownames(sTwo_best_terms) <- sTwo_best$phenotype
+  for(i in 1:length(terms_mu)) {
+      sTwo_best_terms[,(i)] <- grepl(terms_mu[i], sTwo_best$mu_formula)
+  }
+  for(i in 1:length(terms_sigmanu)) {
+      sTwo_best_terms[,(i+length(terms_mu))] <- grepl(terms_sigmanu[i], sTwo_best$sigma_formula)
+      sTwo_best_terms[,(i+length(terms_mu)+length(terms_sigmanu))] <- grepl(terms_sigmanu[i], sTwo_best$nu_formula)
+  }
+
+sTwo_best_terms$label <- name_mapping$region_name[match(sub(".t2", "", rownames(sTwo_best_terms)), name_mapping$abbreviation)]
+```
+### inspect distribution of terms in "BEST" models
+####sOne
+```{r}
+#sOne
+sum(sOne_best_terms$age.mu)
+sum(sOne_best_terms$sex.mu)
+sum(sOne_best_terms$`age:sex.mu`)
+sum(sOne_best_terms$interscan_months_t1t2.mu)
+
+sum(sOne_best_terms$age.sigma)
+sum(sOne_best_terms$sex.sigma)
+
+sum(sOne_best_terms$age.nu)
+sum(sOne_best_terms$sex.nu)
+
+#visualize regions based on terms in the model
+##merge with atlas data
+plot_data_dkt <- merge(sOne_best_terms, ggseg::dk, by = "label")
+plot_data_aseg <- merge(sOne_best_terms, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+sOne_best_terms[!(sOne_best_terms$label %in% plot_data_dkt$label) & !(sOne_best_terms$label %in% plot_data_aseg$label),] %>% print(., row.names = FALSE)
+
+long.sOne_agemu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = age.mu)) +
+  theme_void()+
+  labs(title = "Age in Mu")
+
+long.sOne_agemu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = age.mu)) +
+  theme_void() +
+  labs(title = "Age in Mu")
+
+long.sOne_sexmu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = sex.mu)) +
+  theme_void()+
+  labs(title = "Sex in Mu")
+
+long.sOne_sexmu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = sex.mu)) +
+  theme_void() +
+  labs(title = "Sex in Mu")
+
+long.sOne_agesexmu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = `age:sex.mu`)) +
+  theme_void()+
+  labs(title = "AgeSex in Mu")
+
+long.sOne_agesexmu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = `age:sex.mu`)) +
+  theme_void() +
+  labs(title = "AgeSex in Mu")
+
+long.sOne_interscanmu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = interscan_months_t1t2.mu)) +
+  theme_void()+
+  labs(title = "Interscan in Mu")
+
+long.sOne_interscanmu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = interscan_months_t1t2.mu)) +
+  theme_void() +
+  labs(title = "Interscan in Mu")
+
+
+long.sOne_agesigma_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = age.sigma)) +
+  theme_void()+
+  labs(title = "Age in Sigma")
+
+long.sOne_agesigma_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = age.sigma)) +
+  theme_void() +
+  labs(title = "Age in Sigma")
+
+long.sOne_sexsigma_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = sex.sigma)) +
+  theme_void()+
+  labs(title = "Sex in Sigma")
+
+long.sOne_sexsigma_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = sex.sigma)) +
+  theme_void() +
+  labs(title = "Sex in Sigma")
+
+long.sOne_agenu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = age.nu)) +
+  theme_void()+
+  labs(title = "Age in Nu")
+
+long.sOne_agenu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = age.nu)) +
+  theme_void() +
+  labs(title = "Age in Nu")
+
+long.sOne_sexnu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = sex.nu)) +
+  theme_void()+
+  labs(title = "Sex in Nu")
+
+long.sOne_sexnu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = sex.nu)) +
+  theme_void() +
+  labs(title = "Sex in Nu")
+
+```
+####sTwo
+```{r}
+#sTwo
+sum(sTwo_best_terms$age.mu)
+sum(sTwo_best_terms$sex.mu)
+sum(sTwo_best_terms$`age:sex.mu`)
+sum(sTwo_best_terms$interscan_months_t1t2.mu)
+
+sum(sTwo_best_terms$age.sigma)
+sum(sTwo_best_terms$sex.sigma)
+
+sum(sTwo_best_terms$age.nu)
+sum(sTwo_best_terms$sex.nu)
+
+#visualize regions based on terms in the model
+##merge with atlas data
+plot_data_dkt <- merge(sTwo_best_terms, ggseg::dk, by = "label")
+plot_data_aseg <- merge(sTwo_best_terms, ggseg::aseg, by = "label")
+
+#Regions not matched in atlases
+sTwo_best_terms[!(sTwo_best_terms$label %in% plot_data_dkt$label) & !(sTwo_best_terms$label %in% plot_data_aseg$label),] %>% print(., row.names = FALSE)
+
+long.sTwo_agemu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = age.mu)) +
+  theme_void()+
+  labs(title = "Age in Mu")
+
+long.sTwo_agemu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = age.mu)) +
+  theme_void() +
+  labs(title = "Age in Mu")
+
+long.sTwo_sexmu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = sex.mu)) +
+  theme_void()+
+  labs(title = "Sex in Mu")
+
+long.sTwo_sexmu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = sex.mu)) +
+  theme_void() +
+  labs(title = "Sex in Mu")
+
+long.sTwo_agesexmu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = `age:sex.mu`)) +
+  theme_void()+
+  labs(title = "AgeSex in Mu")
+
+long.sTwo_agesexmu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = `age:sex.mu`)) +
+  theme_void() +
+  labs(title = "AgeSex in Mu")
+
+long.sTwo_interscanmu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = interscan_months_t1t2.mu)) +
+  theme_void()+
+  labs(title = "Interscan in Mu")
+
+long.sTwo_interscanmu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = interscan_months_t1t2.mu)) +
+  theme_void() +
+  labs(title = "Interscan in Mu")
+
+
+long.sTwo_agesigma_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = age.sigma)) +
+  theme_void()+
+  labs(title = "Age in Sigma")
+
+long.sTwo_agesigma_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = age.sigma)) +
+  theme_void() +
+  labs(title = "Age in Sigma")
+
+long.sTwo_sexsigma_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = sex.sigma)) +
+  theme_void()+
+  labs(title = "Sex in Sigma")
+
+long.sTwo_sexsigma_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = sex.sigma)) +
+  theme_void() +
+  labs(title = "Sex in Sigma")
+
+long.sTwo_agenu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = age.nu)) +
+  theme_void()+
+  labs(title = "Age in Nu")
+
+long.sTwo_agenu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = age.nu)) +
+  theme_void() +
+  labs(title = "Age in Nu")
+
+long.sTwo_sexnu_dkt_plot <- ggplot(plot_data_dkt) +
+  geom_brain(atlas = dk, 
+             position = position_brain(hemi ~ side),
+             aes(fill = sex.nu)) +
+  theme_void()+
+  labs(title = "Sex in Nu")
+
+long.sTwo_sexnu_aseg_plot <- ggplot(plot_data_aseg) +
+  geom_brain(atlas = aseg,
+             aes(fill = sex.nu)) +
+  theme_void() +
+  labs(title = "Sex in Nu")
+```
+##Load best model
+```{r}
+sOne_best_list <- paste0(splitOne_folder,"gamlssFIT_",sOne_best$model_index,".rds")
+best_models_One <- lapply(sOne_best_list, readRDS)
+sTwo_best_list <- paste0(splitTwo_folder,"gamlssFIT_",sTwo_best$model_index,".rds")
+best_models_Two <- lapply(sTwo_best_list, readRDS)
+```
+#Diagnostics
+##Worm plots
+get worm plots for best BIC within each phenotype, for each split
+###sOne
+```{r}
+#diagnostics = TRUE
+if(diagnostics == TRUE){
+plot <- TRUE
+sOne_plots_wp <- vector(mode = "list", length = dim(sOne_best)[1])
+for (i  in 1:length(best_models_One)) {
+  #print(deparse(model$mu.formula))
+  model <- best_models_One[[i]]
+  phenotype <- as.character(model$mu.terms[[2]])
+  title <- name_mapping$region_name[match(sub(".t2", "", phenotype), name_mapping$abbreviation)]
+      sOne_plots_wp[[i]] <- wp.taki(model, ylim.worm = 0.5, xlim.worm = 4) + labs(title = title)
+      df <- sTwo_train_df %>% 
+        select(sex, age, site, phenotype) %>% 
+        drop_na()
+    }
+
+if (plot == TRUE){
+n <- length(sOne_plots_wp)
+nCol <- min(c(floor(sqrt(n)), 4))
+nRow <- min(ceiling(n/nCol), 4)
+breaks <- c(seq(from = 0, to = n , by = (nCol*nRow)), n)
+for(k in 1:length(breaks)){
+  start <- breaks[k] + 1
+  end <- breaks[k+1]
+  do.call("grid.arrange", c(sOne_plots_wp[start:end], ncol=nCol))
+}
+}
+}
+```
+###sTwo
+```{r}
+#diagnostics = TRUE
+if(diagnostics == TRUE){
+plot <- TRUE
+sTwo_plots_wp <- vector(mode = "list", length = dim(sTwo_best)[1])
+for (i  in 1:length(best_models_Two)) {
+  #print(deparse(model$mu.formula))
+  model <- best_models_Two[[i]]
+  phenotype <- as.character(model$mu.terms[[2]])
+  title <- name_mapping$region_name[match(sub(".t2", "", phenotype), name_mapping$abbreviation)]
+      sTwo_plots_wp[[i]] <- wp.taki(model, ylim.worm = 0.5, xlim.worm = 4) + labs(title = title)
+      df <- sTwo_train_df %>% 
+        select(sex, age, site, phenotype) %>% 
+        drop_na()
+    }
+
+if (plot == TRUE){
+n <- length(sTwo_plots_wp)
+nCol <- min(c(floor(sqrt(n)), 4))
+nRow <- min(ceiling(n/nCol), 4)
+breaks <- c(seq(from = 0, to = n , by = (nCol*nRow)), n)
+for(k in 1:length(breaks)){
+  start <- breaks[k] + 1
+  end <- breaks[k+1]
+  do.call("grid.arrange", c(sTwo_plots_wp[start:end], ncol=nCol))
+}
+}
+}
+```
+##cent-cdf
+!! even though I edited the cent_cdf to point to pred_og_centile_EK to bypass the "incompatible dimensions warning"
+So cannot calculate cent-cdf for cross-split predictions.
+```{r}
+if (diagnostics == TRUE){
+print <- TRUE
+
+centcdf_one <- setNames(data.frame(matrix(ncol = 3, nrow = dim(sOne_best)[1])), c("ph", "cdfcor_train", "cdfcor_test"))
+centcdf_two <- setNames(data.frame(matrix(ncol = 3, nrow = dim(sTwo_best)[1])), c("ph", "cdfcor_train", "cdfcor_test"))
+cdf_expected <- c(0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99)
+
+for(i in 1:length(best_models_One)){
+#define models from split one and split two
+model_one <- best_models_One[[i]]
+model_two <- best_models_Two[sapply(best_models_Two, function(x){any(grepl(as.character(model_one$mu.formula[[2]]),x$mu.formula))})][[1]]
+
+#define labels for phenotypes based on name_mapping df
+# title_one <- name_mapping$labels[name_mapping$variables == as.character(model_one$mu.formula[[2]])]
+# title_two <- name_mapping$labels[name_mapping$variables == as.character(model_two$mu.formula[[2]])]
+
+title_one <- as.character(model_one$mu.formula[[2]])
+title_two <- as.character(model_two$mu.formula[[2]])
+stopifnot(title_one == title_two)
+ph.t1 <- sub(".t2", ".t1", title_one)
+
+#define original df from split one and two, with phenotypes from the current model
+og_df_one <- sOne_train_df %>% select(c("age", "sex", "site", "interscan_months_t1t2", model_one$mu.formula[[2]], ph.t1))
+og_df_two <- sTwo_train_df %>% select(c("age", "sex", "site", "interscan_months_t1t2", model_two$mu.formula[[2]], ph.t1))
+
+#calculate predicted centiles distribution for sOne models, using sOne train dataset and sTwo test dataset
+#save correlation with expected cdf values
+model <- model_one 
+out_train_one <- suppressMessages(cent_cdf(model_one, og_df_one))$data
+#out_test_one <- suppressMessages(cent_cdf(model_one, sTwo_test_df))
+centcdf_one$ph[i] <- title_one
+centcdf_one$cdfcor_train[i] <- (cor.test(out_train_one$empirical, out_train_one$fitted)$estimate)
+#centcdf_one$cdfcor_test[i] <- (cor.test(as.numeric(out_test_one[1,]), cdf_expected)$estimate)
+
+#calculate predicted centiles distribution for sTwo models, using sTwo train dataset, and sOne test dataset
+#save correlation with expected cdf values
+model <- model_two
+out_train_two <- suppressMessages(cent_cdf(model_two, og_df_two))$data
+#out_test_two <- suppressMessages(cent_cdf(model_two, sOne_test_df))
+centcdf_two$ph[i] <- title_two
+centcdf_two$cdfcor_train[i] <-  (cor.test(out_train_two$empirical, out_train_two$fitted)$estimate)
+#centcdf_two$cdfcor_test[i] <- (cor.test(as.numeric(out_test_two[1,]), cdf_expected)$estimate)
+
+
+if (print == TRUE){
+print(paste0("Correlation Coefficient Split One, Train Data ", title_one, centcdf_one$cdfcor_train[i]))
+print(paste0("Correlation Coefficient Split Two, Train Data ", title_two, centcdf_two$cdfcor_train[i]))
+}
+}
+}
+```
+#Refit trials
+Phenotypes to try to refit/find a better fit
+##sOne
+rh_superiorparietal
+lh_superiorparietal
+rh_precentral
+Left-Thalamus-Proper
+CC_Mid_Anterior
+```{r}
+sOne_refit_phenotypes <- c("rh_superiorparietal"
+                           ,"lh_superiorparietal"
+                           ,"rh_precentral"
+                           ,"Left-Thalamus-Proper"
+                           ,"CC_Mid_Anterior")
+
+sOne_best %>% filter(label %in% sOne_refit_phenotypes) %>% select(c(mu_formula, sigma_formula, nu_formula))
+
+sOne_refit_indexes <- sOne_fits %>% filter(label %in% sOne_refit_phenotypes) %>% select(model_index)
+
+sOne_refit_list <- paste0(splitOne_folder,"gamlssFIT_",sOne_refit_indexes$model_index,".rds")
+refit_models_One <- lapply(sOne_refit_list, readRDS)
+
+#inspect worm plots of the other fitted models for the above phenotypes
+plot <- TRUE
+sOne_plots_refit_wp <- vector(mode = "list", length = length(sOne_refit_list))
+for (i  in 1:length(refit_models_One)) {
+  #print(deparse(model$mu.formula))
+  model <- refit_models_One[[i]]
+  phenotype <- as.character(model$mu.terms[[2]])
+  title <- name_mapping$region_name[match(sub(".t2", "", phenotype), name_mapping$abbreviation)]
+      sOne_plots_refit_wp[[i]] <- wp.taki(model, ylim.worm = 0.5, xlim.worm = 4) + labs(title = title)
+      df <- sTwo_train_df %>% 
+        select(sex, age, site, phenotype) %>% 
+        drop_na()
+    }
+
+if (plot == TRUE){
+n <- length(sOne_plots_refit_wp)
+nCol <- min(c(floor(sqrt(n)), 4))
+nRow <- min(ceiling(n/nCol), 4)
+breaks <- c(seq(from = 0, to = n , by = (nCol*nRow)), n)
+for(k in 1:length(breaks)){
+  start <- breaks[k] + 1
+  end <- breaks[k+1]
+  do.call("grid.arrange", c(sOne_plots_refit_wp[start:end], ncol=nCol))
+}
+}
+
+```
+### test adding terms to Nu
+```{r}
+indexes <- sOne_best %>% filter(label %in% sOne_refit_phenotypes) %>% select(model_index, phenotype)
+sOne_refit_list <- paste0(splitOne_folder,"gamlssFIT_",indexes$model_index,".rds")
+refit_models_One <- lapply(sOne_refit_list, readRDS)
+
+model_specs_list <- list.files("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_models_long_vol_2.0/")
+refit_model_specs_list <- model_specs_list[indexes$model_index]
+refit_model_specs <- lapply(paste0("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_models_long_vol_2.0/",refit_model_specs_list), readRDS)
+
+refit_wp <- vector(mode = "list", length = 2*length(sOne_refit_list))
+
+for(i in 1:length(refit_models_One)){
+
+model_old <- refit_models_One[[i]]
+model <- refit_model_specs[[i]]
+phenotype <- model_old$mu.formula[[2]]
+df <- sOne_train_df %>% select(sex, age, site, nonSingleton, phenotypes_to_fit) %>% 
+    drop_na()
+new_tauform <- as.formula(paste0(deparse(refit_models_One[[1]]$nu.formula), "+ age"))
+
+phenotype <- as.character(model_old$mu.terms[[2]])
+title <- name_mapping$region_name[match(phenotype, name_mapping$abbreviation)]
+
+model_new <- update(model_old, what = "nu", formula. = new_nuform, data = df)
+
+refit_wp[[i]] <- wp.taki(model_new, ylim.worm = 0.5, xlim.worm = 4) + labs(title = paste0(title, ": Age in Nu"))
+
+gamlss_bct <- gamlss (formula = model$mu.formula,
+                  sigma.formula = model$sigma.formula,
+                  nu.formula = model$nu.formula,
+                  family = "BCT",
+                  method = RS(),
+                  data = df,
+                  control = gamlss.control(n.cyc = eval(model$n_crit)))
+refit_wp[[2*i]] <-wp.taki(gamlss_bct, ylim.worm = 0.5, xlim.worm = 4) + labs(title = paste0(title, ": BCT"))
+}
+
+n <- length(refit_wp)
+nCol <- min(c(floor(sqrt(n)), 4))
+nRow <- min(ceiling(n/nCol), 4)
+breaks <- c(seq(from = 0, to = n , by = (nCol*nRow)), n)
+for(k in 1:length(breaks)){
+  start <- breaks[k] + 1
+  end <- breaks[k+1]
+  do.call("grid.arrange", c(refit_wp[start:end], ncol=nCol))
+}
+
+```
+##sTwo
+Left-Thalamus-Proper
+CC_Mid_Anterior
+rh_superiorparietal
+lh_superiorparietal
+lh_paracentral
+```{r}
+sTwo_refit_phenotypes <- c("rh_superiorparietal"
+                           ,"lh_superiorparietal"
+                           ,"lh_paracentral"
+                           ,"Left-Thalamus-Proper"
+                           ,"CC_Mid_Anterior")
+
+sTwo_refit_indexes <- sTwo_fits %>% filter(label %in% sTwo_refit_phenotypes) %>% select(model_index)
+
+sTwo_refit_list <- paste0(splitOne_folder,"gamlssFIT_",sTwo_refit_indexes$model_index,".rds")
+refit_models_One <- lapply(sTwo_refit_list, readRDS)
+
+#inspect worm plots of the other fitted models for the above phenotypes
+plot <- TRUE
+sTwo_plots_refit_wp <- vector(mode = "list", length = length(sTwo_refit_list))
+for (i  in 1:length(refit_models_One)) {
+  #print(deparse(model$mu.formula))
+  model <- refit_models_One[[i]]
+  phenotype <- as.character(model$mu.terms[[2]])
+  title <- name_mapping$region_name[match(phenotype, name_mapping$abbreviation)]
+      sTwo_plots_refit_wp[[i]] <- wp.taki(model, ylim.worm = 0.5, xlim.worm = 4) + labs(title = title)
+      df <- sTwo_train_df %>% 
+        select(sex, age, site, phenotype) %>% 
+        drop_na()
+    }
+
+if (plot == TRUE){
+n <- length(sTwo_plots_refit_wp)
+nCol <- min(c(floor(sqrt(n)), 4))
+nRow <- min(ceiling(n/nCol), 4)
+breaks <- c(seq(from = 0, to = n , by = (nCol*nRow)), n)
+for(k in 1:length(breaks)){
+  start <- breaks[k] + 1
+  end <- breaks[k+1]
+  do.call("grid.arrange", c(sTwo_plots_refit_wp[start:end], ncol=nCol))
+}
+}
+
+```
+### test adding terms to Nu
+```{r}
+indexes <- sTwo_best %>% filter(label %in% sTwo_refit_phenotypes) %>% select(model_index, phenotype)
+sTwo_refit_list <- paste0(splitOne_folder,"gamlssFIT_",indexes$model_index,".rds")
+refit_models_One <- lapply(sTwo_refit_list, readRDS)
+
+model_specs_list <- list.files("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_models_t1_vol_2.0/")
+refit_model_specs_list <- model_specs_list[indexes$model_index]
+refit_model_specs <- lapply(paste0("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/gamlss_models_t1_vol_2.0/",refit_model_specs_list), readRDS)
+
+refit_wp <- vector(mode = "list", length = 2*length(sTwo_refit_list))
+
+for(i in 1:length(refit_models_One)){
+
+model_old <- refit_models_One[[i]]
+model <- refit_model_specs[[i]]
+phenotype <- model_old$mu.formula[[2]]
+df <- sTwo_train_df %>% select(sex, age, site, nonSingleton, phenotypes_to_fit) %>% 
+    drop_na()
+new_nuform <- as.formula(paste0(deparse(refit_models_One[[1]]$nu.formula), "+ age"))
+
+phenotype <- as.character(model_old$mu.terms[[2]])
+title <- name_mapping$region_name[match(phenotype, name_mapping$abbreviation)]
+
+model_new <- update(model_old, what = "nu", formula. = new_nuform, data = df)
+
+refit_wp[[i]] <- wp.taki(model_new, ylim.worm = 0.5, xlim.worm = 4) + labs(title = paste0(title, ": Age in Nu"))
+
+gamlss_bct <- gamlss (formula = model$mu.formula,
+                  sigma.formula = model$sigma.formula,
+                  nu.formula = model$nu.formula,
+                  family = "BCT",
+                  method = RS(),
+                  data = df,
+                  control = gamlss.control(n.cyc = eval(model$n_crit)))
+refit_wp[[2*i]] <-wp.taki(gamlss_bct, ylim.worm = 0.5, xlim.worm = 4) + labs(title = paste0(title, ": BCT"))
+}
+
+n <- length(refit_wp)
+nCol <- min(c(floor(sqrt(n)), 4))
+nRow <- min(ceiling(n/nCol), 4)
+breaks <- c(seq(from = 0, to = n , by = (nCol*nRow)), n)
+for(k in 1:length(breaks)){
+  start <- breaks[k] + 1
+  end <- breaks[k+1]
+  do.call("grid.arrange", c(refit_wp[start:end], ncol=nCol))
+}
+
+```
+#PREDICT CENTILES
+predict centile scores for split TWO using model trained on split ONE
+```{r}
+plot <- FALSE
+print <- FALSE 
+
+centiles_pred_one <- vector(mode = "list", length = dim(sOne_best)[1])
+centiles_pred_two <- vector(mode = "list", length = dim(sTwo_best)[1])
+splits_correlations <- setNames(data.frame(matrix(ncol = 4, nrow = dim(sOne_best)[1])), c("ph_one", "cor_est_one", "ph_two", "cor_est_two"))
+
+for(i in 1:length(best_models_One)){
+#define models from split one and split two
+model_one <- best_models_One[[i]]
+model_two <- best_models_Two[sapply(best_models_Two, function(x){any(grepl(as.character(model_one$mu.formula[[2]]),x$mu.formula))})][[1]]
+
+#define labels for phenotypes based on name_mapping df
+# title_one <- name_mapping$labels[name_mapping$variables == as.character(model_one$mu.formula[[2]])]
+# title_two <- name_mapping$labels[name_mapping$variables == as.character(model_two$mu.formula[[2]])]
+
+title_one <- as.character(model_one$mu.formula[[2]])
+title_two <- as.character(model_two$mu.formula[[2]])
+stopifnot(title_one == title_two)
+ph.t1 <- sub(".t2", ".t1", title_one)
+
+#define original df from split one and two, with phenotypes from the current model
+og_df_one <- sOne_train_df %>% select(c("age", "sex", "site", "interscan_months_t1t2", model_one$mu.formula[[2]], ph.t1))
+og_df_two <- sTwo_train_df %>% select(c("age", "sex", "site", "interscan_months_t1t2", model_two$mu.formula[[2]], ph.t1))
+
+#calculate predicted centiles on sOne and sTwo data using sOne model
+
+model <- model_one
+sOne_centiles_1 <- suppressMessages(pred_og_centile_EK(model_one, sOne_train_df))
+sTwo_centiles_1 <- suppressMessages(pred_og_centile_EK(model_one, og_df_one, new.data = sTwo_train_df))
+centiles_pred_two[[i]] <- suppressMessages(pred_og_centile_EK(model_one, og_df_one, new.data = sTwo_test_df))
+names(centiles_pred_two)[i] <- paste(title_two, "centiles", sep = "_")
+splits_correlations$ph_one[i] <- title_one
+
+#calculate predicted centiles on sOne and sTwo data using sTwo model
+model <- model_two
+sOne_centiles_2 <- suppressMessages(pred_og_centile_EK(model_two, og_df_two, new.data = sOne_train_df))
+sTwo_centiles_2 <- suppressMessages(pred_og_centile_EK(model_two, sTwo_train_df))
+centiles_pred_one[[i]] <- suppressMessages(pred_og_centile_EK(model_two, og_df_two, new.data = sOne_test_df))
+names(centiles_pred_one)[i] <- paste(title_one, "centiles", sep = "_")
+splits_correlations$ph_two[i] <- title_two
+
+if(plot == TRUE) {
+  #Plotting sOne and sTwo from two predictions
+  plot(sOne_centiles_1, sOne_centiles_2, main = paste0("split One: ", title_one) , ylab = "predictions from Model 1", xlab = "predictions from Model 2")
+  abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
+  plot(sTwo_centiles_1, sTwo_centiles_2, main = paste0("split Two: ", title_two) , ylab = "predictions from Model 1", xlab = "predictions from Model 2")
+  abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
+  }
+
+#Correlation coefficients
+cor_one <- cor.test(sOne_centiles_1, sOne_centiles_2)
+cor_two <- cor.test(sTwo_centiles_1, sTwo_centiles_2)
+
+#Save correlations in dataframe
+splits_correlations$cor_est_one[i] <- cor_one$estimate
+splits_correlations$cor_est_two[i] <- cor_two$estimate
+
+if (print == TRUE){
+print(paste0("Correlation Coefficient Split One, ", title_one, cor_one$estimate, " , ", cor_one$p.value))
+print(paste0("Correlation Coefficient Split Two, ", title_two, cor_two$estimate, " , ", cor_two$p.value))
+}
+}
+```
+##Save calculated centiles
+Save in single dataframe with columns for participant ID and split ID
+```{r}
+save_fits == TRUE
+if(save_fits == TRUE){
+output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/centiles_calculated/"
+filename <- paste0(output_folder, "long.volume_centiles_", Sys.Date(), ".csv")
+
+centiles_One <- cbind(sOne_test_df %>% select(src_subject_id), as.data.frame(centiles_pred_one))
+centiles_One$split_ID <- rep("1", dim(centiles_One)[1])
+                             
+centiles_Two <- cbind(sTwo_test_df %>% select(src_subject_id), as.data.frame(centiles_pred_two))
+centiles_Two$split_ID <- rep("2", dim(centiles_Two)[1])
+
+centiles_all <- rbind(centiles_One, centiles_Two)
+
+write.csv(centiles_all, filename)
+}
+```
+##centiles fit metrics
+###test uniformity
+```{r}
+if(sum(grepl("centiles",names(sOne_test_df)))== 0) {
+sOne_test_df <- cbind(sOne_test_df, as.data.frame(centiles_pred_one))
+sTwo_test_df <- cbind(sTwo_test_df, as.data.frame(centiles_pred_two))
+}
+full_test_df <- rbind(sOne_test_df,sTwo_test_df)
+
+#sOne
+kstest_one <- as.data.frame(t(sapply(sOne_test_df[, grepl("centiles", names(sOne_test_df))], function(x) {
+  #jitter data with small noise to avoid "ties" warning
+  x <- x + runif(length(x), -1e-6, 1e-6)
+  test <- ks.test(x, "punif", 0, 1)
+
+  c(p_value = test$p.value[1], test = "uniformity")
+})))
+
+kstest_one$p_adj <- p.adjust(kstest_one$p_value, method = "BH")
+kstest_one$label <- name_mapping$region_name[match(sub(".t2_centiles","",rownames(kstest_one)), name_mapping$abbreviation)]
+
+kstest_one %>% filter(p_adj < 0.05) %>% select(label)
+
+#sTwo
+kstest_two <- as.data.frame(t(sapply(sTwo_test_df[, grepl("centiles", names(sTwo_test_df))], function(x) {
+  #jitter data with small noise to avoid "ties" warning
+  x <- x + runif(length(x), -1e-6, 1e-6)
+  test <- ks.test(x, "punif", 0, 1)
+
+  c(p_value = test$p.value[1], test = "uniformity")
+})))
+
+kstest_two$p_adj <- p.adjust(kstest_two$p_value, method = "BH")
+kstest_two$label <- name_mapping$region_name[match(sub(".t2sum_centiles","",rownames(kstest_two)), name_mapping$abbreviation)]
+
+kstest_two %>% filter(p_adj < 0.05) %>% select(label)
+
+```
