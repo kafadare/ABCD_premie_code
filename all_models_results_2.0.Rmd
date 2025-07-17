@@ -853,9 +853,9 @@ t1.sub1_plot <- t1.sub1_plot + geom_point(aes(x = sub1_age.t1, y = sub1.t1$smri_
     axis.text.x = element_text(size = 14),
     axis.text.y = element_text(size = 14)) +
     scale_y_continuous(
-    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    breaks = seq(450000, 800000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(450000, 750000)               # fix y-axis range
+    limits = c(450000, 760000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(96, 144, by = 12),              # positions (in months)
@@ -885,9 +885,9 @@ t1.sub2_plot <- t1.sub2_plot + geom_point(aes(x = sub2_age.t1, y = sub2.t1$smri_
     axis.text.x = element_text(size = 14),
     axis.text.y = element_text(size = 14)) +
     scale_y_continuous(
-    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    breaks = seq(450000, 800000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(450000, 750000)               # fix y-axis range
+    limits = c(450000, 760000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(96, 144, by = 12),              # positions (in months)
@@ -917,9 +917,9 @@ t1.sub3_plot <- t1.sub3_plot + geom_point(aes(x = sub3_age.t1, y = sub3.t1$smri_
     axis.text.x = element_text(size = 14),
     axis.text.y = element_text(size = 14)) +
     scale_y_continuous(
-    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    breaks = seq(450000, 800000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(450000, 750000)               # fix y-axis range
+    limits = c(450000, 760000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(96, 144, by = 12),              # positions (in months)
@@ -949,9 +949,9 @@ t1.sub4_plot <- t1.sub4_plot + geom_point(aes(x = sub4_age.t1, y = sub4.t1$smri_
     axis.text.x = element_text(size = 14),
     axis.text.y = element_text(size = 14)) +
     scale_y_continuous(
-    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    breaks = seq(450000, 800000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(450000, 750000)               # fix y-axis range
+    limits = c(450000, 760000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(96, 144, by = 12),              # positions (in months)
@@ -1021,9 +1021,9 @@ t2.sub1_plot <- t2.sub1_plot + geom_point(aes(x = sub1_age.t2, y = sub1.t2$smri_
     axis.text.x = element_text(size = 14),
     axis.text.y = element_text(size = 14)) +
     scale_y_continuous(
-    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    breaks = seq(450000, 800000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(450000, 750000)               # fix y-axis range
+    limits = c(450000, 760000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(120, 168, by = 12),              # positions (in months)
@@ -1053,9 +1053,9 @@ t2.sub2_plot <- t2.sub2_plot + geom_point(aes(x = sub2_age.t2, y = sub2.t2$smri_
     axis.text.x = element_text(size = 14),
     axis.text.y = element_text(size = 14)) +
     scale_y_continuous(
-    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    breaks = seq(450000, 800000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(450000, 750000)               # fix y-axis range
+    limits = c(450000, 760000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(120, 168, by = 12),              # positions (in months)
@@ -1085,9 +1085,9 @@ t2.sub3_plot <- t2.sub3_plot + geom_point(aes(x = sub3_age.t2, y = sub3.t2$smri_
     axis.text.x = element_text(size = 14),
     axis.text.y = element_text(size = 14)) +
     scale_y_continuous(
-    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    breaks = seq(450000, 800000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(450000, 750000)               # fix y-axis range
+    limits = c(450000, 760000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(120, 168, by = 12),              # positions (in months)
@@ -1117,9 +1117,9 @@ t2.sub4_plot <- t2.sub4_plot + geom_point(aes(x = sub4_age.t2, y = sub4.t2$smri_
     axis.text.x = element_text(size = 14),
     axis.text.y = element_text(size = 14)) +
     scale_y_continuous(
-    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    breaks = seq(450000, 800000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(450000, 750000)               # fix y-axis range
+    limits = c(450000, 760000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(120, 168, by = 12),              # positions (in months)
@@ -1193,7 +1193,7 @@ long.sub2_plot <- long.sub2_plot + geom_point(aes(x = sub2_age.long, y = sub2.lo
     scale_y_continuous(
     breaks = seq(550000, 700000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(600000, 620000)               # fix y-axis range
+    limits = c(590000, 680000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(120, 168, by = 12),              # positions (in months)
@@ -1257,7 +1257,7 @@ long.sub4_plot <- long.sub4_plot + geom_point(aes(x = sub4_age.long, y = sub4.lo
     scale_y_continuous(
     breaks = seq(500000, 600000, by=50000),  # tick positions in raw units
     labels = function(x) x / 10000,        # transform labels
-    limits = c(505000, 565000)               # fix y-axis range
+    limits = c(495000, 580000)               # fix y-axis range
   ) +
   scale_x_continuous(
    breaks = seq(120, 168, by = 12),              # positions (in months)
