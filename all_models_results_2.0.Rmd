@@ -883,7 +883,17 @@ t1.sub2_plot <- t1.sub2_plot + geom_point(aes(x = sub2_age.t1, y = sub2.t1$smri_
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(450000, 750000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(96, 144, by = 12),              # positions (in months)
+   labels = as.character(seq(8, 12, by = 1)),    # corresponding labels (in years)
+   limits = c(105,133)               # fix x-axis range
+  )
 
 #subject 3
 sub3.t1 <- df.t1 %>% filter(src_subject_id == subjects[3])
@@ -905,7 +915,17 @@ t1.sub3_plot <- t1.sub3_plot + geom_point(aes(x = sub3_age.t1, y = sub3.t1$smri_
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(450000, 750000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(96, 144, by = 12),              # positions (in months)
+   labels = as.character(seq(8, 12, by = 1)),    # corresponding labels (in years)
+   limits = c(105,133)               # fix x-axis range
+  )
 
 #subject 4
 sub4.t1 <- df.t1 %>% filter(src_subject_id == subjects[4])
@@ -927,7 +947,17 @@ t1.sub4_plot <- t1.sub4_plot + geom_point(aes(x = sub4_age.t1, y = sub4.t1$smri_
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(450000, 750000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(96, 144, by = 12),              # positions (in months)
+   labels = as.character(seq(8, 12, by = 1)),    # corresponding labels (in years)
+   limits = c(105,133)               # fix x-axis range
+  )
 ```
 ##t2 plot
 ###one plot
@@ -989,7 +1019,17 @@ t2.sub1_plot <- t2.sub1_plot + geom_point(aes(x = sub1_age.t2, y = sub1.t2$smri_
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(450000, 750000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(120, 168, by = 12),              # positions (in months)
+   labels = as.character(seq(10, 14, by = 1)),    # corresponding labels (in years)
+   limits = c(125,167)               # fix x-axis range
+  )
 
 #subject 2
 sub2.t2 <- df.t2 %>% filter(src_subject_id == subjects[2])
@@ -1011,7 +1051,17 @@ t2.sub2_plot <- t2.sub2_plot + geom_point(aes(x = sub2_age.t2, y = sub2.t2$smri_
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(450000, 750000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(120, 168, by = 12),              # positions (in months)
+   labels = as.character(seq(10, 14, by = 1)),    # corresponding labels (in years)
+   limits = c(125,167)               # fix x-axis range
+  )
 
 #subject 3
 sub3.t2 <- df.t2 %>% filter(src_subject_id == subjects[3])
@@ -1033,7 +1083,17 @@ t2.sub3_plot <- t2.sub3_plot + geom_point(aes(x = sub3_age.t2, y = sub3.t2$smri_
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(450000, 750000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(120, 168, by = 12),              # positions (in months)
+   labels = as.character(seq(10, 14, by = 1)),    # corresponding labels (in years)
+   limits = c(125,167)               # fix x-axis range
+  )
 
 #subject 4
 sub4.t2 <- df.t2 %>% filter(src_subject_id == subjects[4])
@@ -1055,7 +1115,17 @@ t2.sub4_plot <- t2.sub4_plot + geom_point(aes(x = sub4_age.t2, y = sub4.t2$smri_
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(450000, 750000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(450000, 750000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(120, 168, by = 12),              # positions (in months)
+   labels = as.character(seq(10, 14, by = 1)),    # corresponding labels (in years)
+   limits = c(125,167)               # fix x-axis range
+  )
 ```
 ##longitudinal plot
 ###per subject
@@ -1087,7 +1157,17 @@ long.sub1_plot <- long.sub1_plot + geom_point(aes(x = sub1_age.long, y = sub1.lo
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(500000, 650000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(530000, 620000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(120, 168, by = 12),              # positions (in months)
+   labels = as.character(seq(10, 14, by = 1)),    # corresponding labels (in years)
+   limits = c(125,167)               # fix x-axis range
+  )
 
 #subject 2
 sub2.long <- df.long %>% filter(src_subject_id == subjects[2])
@@ -1109,7 +1189,17 @@ long.sub2_plot <- long.sub2_plot + geom_point(aes(x = sub2_age.long, y = sub2.lo
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(550000, 700000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(600000, 620000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(120, 168, by = 12),              # positions (in months)
+   labels = as.character(seq(10, 14, by = 1)),    # corresponding labels (in years)
+   limits = c(125,167)               # fix x-axis range
+  )
 
 #subject 3
 sub3.long <- df.long %>% filter(src_subject_id == subjects[3])
@@ -1131,7 +1221,17 @@ long.sub3_plot <- long.sub3_plot + geom_point(aes(x = sub3_age.long, y = sub3.lo
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(450000, 550000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(480000, 550000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(120, 168, by = 12),              # positions (in months)
+   labels = as.character(seq(10, 14, by = 1)),    # corresponding labels (in years)
+   limits = c(125,167)               # fix x-axis range
+  )
 
 #subject 4
 sub4.long <- df.long %>% filter(src_subject_id == subjects[4])
@@ -1153,7 +1253,17 @@ long.sub4_plot <- long.sub4_plot + geom_point(aes(x = sub4_age.long, y = sub4.lo
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
+    axis.text.y = element_text(size = 14)) +
+    scale_y_continuous(
+    breaks = seq(500000, 600000, by=50000),  # tick positions in raw units
+    labels = function(x) x / 10000,        # transform labels
+    limits = c(505000, 565000)               # fix y-axis range
+  ) +
+  scale_x_continuous(
+   breaks = seq(120, 168, by = 12),              # positions (in months)
+   labels = as.character(seq(10, 14, by = 1)),    # corresponding labels (in years)
+   limits = c(125,167)               # fix x-axis range
+  )
 ```
 ##Put plots together
 ```{r}
