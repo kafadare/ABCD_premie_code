@@ -1339,184 +1339,6 @@ print(final_grid)
 
 ggsave(plot=final_grid, filename='Fig1_2025-07-08.pdf', dpi=300, width=12, height=8)
 ```
-
-##plot longitudinal centiles -- deprecated
-```{r}
-##specify subjects
-subjects <- c("NDAR_INV04YC4RXD" , "NDAR_INV07924XF1", "NDAR_INV00HEV6HB", "NDAR_INV0191C80U")
-model <- long.best_models_One[[1]]
-df <- full.df  %>% select(c("smri_vol_cdk_total.t1", "smri_vol_cdk_total.t2", "age.t2", "sex", "site.t2", "src_subject_id", "PCW_between_t1t2", "nonSingleton")) %>% rename(age = age.t2, site = site.t2) %>% drop_na()
-long.subjects_resid <- df
-
-#replace t1 values with residualized t1 values from cross-sectional model
-##residualized t1 dataframe
-model.t1 <- t1.best_models_One[[1]]
-df.t1 <- full.df  %>% select(c("smri_vol_cdk_total", "age.t1", "sex", "site.t1", "src_subject_id", "nonSingleton")) %>% rename(age = age.t1, site = site.t1)
-t1.subjects_resid <- resid_data(model.t1, df.t1, og_data = t1.sOne_train_df, rm_terms = c("sex","site")) %>% filter(src_subject_id %in% df$src_subject_id)
-long.subjects_resid$smri_vol_cdk_total.t1 <- t1.subjects_resid[match(t1.subjects_resid$src_subject_id, long.subjects_resid$src_subject_id), "smri_vol_cdk_total"]
-
-#replace t2 values with residualized t2 values from cross-sectional model
-##residualized t2 dataframe
-model.t2 <- t2.best_models_One[[1]]
-df.t2 <- full.df  %>% select(c("smri_vol_cdk_total.t2", "age.t2", "sex", "site.t2", "src_subject_id", "nonSingleton")) %>% rename(age = age.t2, site = site.t2) %>% drop_na()
-t2.subjects_resid <- resid_data(model.t2, df.t2, og_data = t2.sOne_train_df, rm_terms = c("sex","site"))
-long.subjects_resid$smri_vol_cdk_total.t2 <- t2.subjects_resid[match(t2.subjects_resid$src_subject_id, long.subjects_resid$src_subject_id), "smri_vol_cdk_total.t2"]
-
-#residualize the longitudinal model on sex and site.
-long.subjects_resid <- resid_data(model, long.subjects_resid, og_data = t2.sOne_train_df, rm_terms = c("sex","site", "nonSingleton"))
-
-#subject 1
-
-long.sub1_resid <- long.subjects_resid %>% filter(src_subject_id == subjects[1])
-#set variables to match the simulations for the t1 and t2 cross-sectional plots
-long.sub1_resid$sex <- "M"
-long.sub1_resid$site <- "site16"
-long.sub1_resid$nonSingleton <- 0
-sub1_age <- long.sub1_resid$age
-
-#calculate correct data point for the correct centile value
-long.sub1_centile <- full.df[which(full.df$src_subject_id == subjects[1]), "smri_vol_cdk_total.long_centiles"]
-fname <- model$family[1]
-qfun <- paste0("q", fname)
-n_param <- length(model$parameters)
-pred <- predictAll(model, newdata = long.sub1_resid, 
-            type = "response", data = t2.sOne_train_df)
-centile <- as.data.frame(lapply(long.sub1_centile, pred_centile, 
-            df = pred, q_func = qfun, n_param = n_param))
-names(centile) <- "value"
-
-#replicate simulation data frame across age ranges
-long.sub1_resid <- long.sub1_resid %>% slice(rep(1,100))
-
-#simulate across age
-long.sub1_resid$age <- seq(from = min(t2.sOne_train_df$age), to = max(t2.sOne_train_df$age), length.out = 100)
-
-#plot
-long.sub1_plot <- make_centile_fan(model, t2.sOne_train_df, "age", show_points=FALSE, color_manual="#E69F00", average_over = FALSE, sim_data_list = list(one = long.sub1_resid))
-
-long.sub1_plot <- long.sub1_plot + geom_point(aes(x = sub1_age, y = centile$value), color = "#E69F00", shape = 16, size = 3, stroke = 1) +
-  geom_text(aes(x = sub1_age, y = centile$value, label = round(full.df[which(full.df$src_subject_id == subjects[1]), "smri_vol_cdk_total.long_centiles"], digits = 2)), vjust = -1, color = "#E69F00") +
-  theme_minimal() + labs(x = "Age (Years) ", y = expression("Total Gray Matter (" * 10^5 * " " * mm^3 * ")"), title = "Conditional Longitudinal Subject 1") + theme(plot.title = element_text(size = 25, face = "bold", hjust = 0.5),
-    axis.title.x = element_text(size = 20),
-    axis.title.y = element_text(size = 20),
-    axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
-
-
-#subject 2
-
-long.sub2_resid <- long.subjects_resid %>% filter(src_subject_id == subjects[2])
-#set variables to match the simulations for the t1 and t2 cross-sectional plots
-long.sub2_resid$sex <- "M"
-long.sub2_resid$site <- "site16"
-long.sub2_resid$nonSingleton <- 0
-sub2_age <- long.sub2_resid$age
-
-#calculate correct data point for the correct centile value
-long.sub2_centile <- full.df[which(full.df$src_subject_id == subjects[2]), "smri_vol_cdk_total.long_centiles"]
-fname <- model$family[1]
-qfun <- paste0("q", fname)
-n_param <- length(model$parameters)
-pred <- predictAll(model, newdata = long.sub2_resid, 
-            type = "response", data = t2.sOne_train_df)
-centile <- as.data.frame(lapply(long.sub2_centile, pred_centile, 
-            df = pred, q_func = qfun, n_param = n_param))
-names(centile) <- "value"
-
-#replicate simulation data frame across age ranges
-long.sub2_resid <- long.sub2_resid %>% slice(rep(1,100))
-
-#simulate across age
-long.sub2_resid$age <- seq(from = min(t2.sOne_train_df$age), to = max(t2.sOne_train_df$age), length.out = 100)
-
-#plot
-long.sub2_plot <- make_centile_fan(model, t2.sOne_train_df, "age", show_points=FALSE, color_manual="#56B4E9", average_over = FALSE, sim_data_list = list(one = long.sub2_resid))
-
-long.sub2_plot <- long.sub2_plot + geom_point(aes(x = sub2_age, y = centile$value), color = "#56B4E9", shape = 16, size = 3, stroke = 1) +
-  geom_text(aes(x = sub2_age, y = centile$value, label = round(full.df[which(full.df$src_subject_id == subjects[2]), "smri_vol_cdk_total.long_centiles"], digits = 2)), vjust = -1, color = "#56B4E9") +
-  theme_minimal() + labs(x = "Age (Years) ", y = expression("Total Gray Matter (" * 10^5 * " " * mm^3 * ")"), title = "Conditional Longitudinal Subject 2") +  theme(plot.title = element_text(size = 25, face = "bold", hjust = 0.5),
-    axis.title.x = element_text(size = 20),
-    axis.title.y = element_text(size = 20),
-    axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
-
-
-#subject 3
-
-long.sub3_resid <- long.subjects_resid %>% filter(src_subject_id == subjects[3])
-#set variables to match the simulations for the t1 and t2 cross-sectional plots
-long.sub3_resid$sex <- "M"
-long.sub3_resid$site <- "site16"
-long.sub3_resid$nonSingleton <- 0
-sub3_age <- long.sub3_resid$age
-
-#calculate correct data point for the correct centile value
-long.sub3_centile <- full.df[which(full.df$src_subject_id == subjects[3]), "smri_vol_cdk_total.long_centiles"]
-fname <- model$family[1]
-qfun <- paste0("q", fname)
-n_param <- length(model$parameters)
-pred <- predictAll(model, newdata = long.sub3_resid, 
-            type = "response", data = t2.sOne_train_df)
-centile <- as.data.frame(lapply(long.sub3_centile, pred_centile, 
-            df = pred, q_func = qfun, n_param = n_param))
-names(centile) <- "value"
-
-#replicate simulation data frame across age ranges
-long.sub3_resid <- long.sub3_resid %>% slice(rep(1,100))
-
-#simulate across age
-long.sub3_resid$age <- seq(from = min(t2.sOne_train_df$age), to = max(t2.sOne_train_df$age), length.out = 100)
-
-#plot
-long.sub3_plot <- make_centile_fan(model, t2.sOne_train_df, "age", show_points=FALSE, color_manual="#009E73", average_over = FALSE, sim_data_list = list(one = long.sub3_resid))
-
-long.sub3_plot <- long.sub3_plot + geom_point(aes(x = sub3_age, y = centile$value), color = "#009E73", shape = 16, size = 3, stroke = 1) +
-  geom_text(aes(x = sub3_age, y = centile$value, label = round(full.df[which(full.df$src_subject_id == subjects[3]), "smri_vol_cdk_total.long_centiles"], digits = 2)), vjust = -1, color = "#009E73") +
-  theme_minimal() + labs(x = "Age (Years) ", y = expression("Total Gray Matter (" * 10^5 * " " * mm^3 * ")"), title = "Conditional Longitudinal Subject 3") +  theme(plot.title = element_text(size = 25, face = "bold", hjust = 0.5),
-    axis.title.x = element_text(size = 20),
-    axis.title.y = element_text(size = 20),
-    axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
-
-#subject 4
-
-long.sub4_resid <- long.subjects_resid %>% filter(src_subject_id == subjects[4])
-#set variables to match the simulations for the t1 and t2 cross-sectional plots
-long.sub4_resid$sex <- "M"
-long.sub4_resid$site <- "site16"
-long.sub4_resid$nonSingleton <- 0
-sub4_age <- long.sub4_resid$age
-
-#calculate correct data point for the correct centile value
-long.sub4_centile <- full.df[which(full.df$src_subject_id == subjects[4]), "smri_vol_cdk_total.long_centiles"]
-fname <- model$family[1]
-qfun <- paste0("q", fname)
-n_param <- length(model$parameters)
-pred <- predictAll(model, newdata = long.sub4_resid, 
-            type = "response", data = t2.sOne_train_df)
-centile <- as.data.frame(lapply(long.sub4_centile, pred_centile, 
-            df = pred, q_func = qfun, n_param = n_param))
-names(centile) <- "value"
-
-#replicate simulation data frame across age ranges
-long.sub4_resid <- long.sub4_resid %>% slice(rep(1,100))
-
-#simulate across age
-long.sub4_resid$age <- seq(from = min(t2.sOne_train_df$age), to = max(t2.sOne_train_df$age), length.out = 100)
-
-#plot
-long.sub4_plot <- make_centile_fan(model, t2.sOne_train_df, "age", show_points=FALSE, color_manual="#E0776E", average_over = FALSE, sim_data_list = list(one = long.sub4_resid))
-
-long.sub4_plot <- long.sub4_plot + geom_point(aes(x = sub4_age, y = centile$value), color = "#E0776E", shape = 16, size = 3, stroke = 1) +
-  geom_text(aes(x = sub4_age, y = centile$value, label = round(full.df[which(full.df$src_subject_id == subjects[4]), "smri_vol_cdk_total.long_centiles"], digits = 2)), vjust = -1, color = "#E0776E") +
-  theme_minimal() + labs(x = "Age (Years) ", y = expression("Total Gray Matter (" * 10^5 * " " * mm^3 * ")"), title = "Conditional Longitudinal Subject 3") +  theme(plot.title = element_text(size = 25, face = "bold", hjust = 0.5),
-    axis.title.x = element_text(size = 20),
-    axis.title.y = element_text(size = 20),
-    axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14))
-
-```
-
 #Plots for Fig 2/Fig 3/Fig 4
 ##T1
 ###Gestational Age
@@ -1571,6 +1393,13 @@ if(save_tables == TRUE){
   filename_sig <- paste0(output_folder, "dsk_gestAge_sig.csv")
   write.csv(save_table_full.t1, filename_all)
   write.csv(save_table_sig, filename_sig)
+}
+if(save_tables == TRUE){
+output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/Surface_Maps/"
+filename_global <- paste0(output_folder, "ga_global.csv")
+filename_regional <- paste0(output_folder, "ga_regional.csv")
+write.csv(ga_reg_table_global.t1, filename_global)
+write.csv(ga_reg_table_full.t1, filename_regional)
 }
 ```
 ####visualization of betas on surface maps
@@ -1663,6 +1492,14 @@ if(save_tables == TRUE){
   filename_sig <- paste0(output_folder, "dsk_birthweight_sig.csv")
   write.csv(save_table_full.t1, filename_all)
   write.csv(save_table_sig, filename_sig)
+}
+
+if(save_tables == TRUE){
+output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/Surface_Maps/"
+filename_global <- paste0(output_folder, "bw_global.csv")
+filename_regional <- paste0(output_folder, "bw_regional.csv")
+write.csv(bw_reg_table_global.t1, filename_global)
+write.csv(bw_reg_table_full.t1, filename_regional)
 }
 ```
 ####Scatter Plots/Boxplots for global phenotypes
@@ -1982,6 +1819,13 @@ if(save_tables == TRUE){
   write.csv(save_table_full.t1, filename_all)
   write.csv(save_table_sig, filename_sig)
 }
+if(save_tables == TRUE){
+output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/Surface_Maps/"
+filename_global <- paste0(output_folder, "bwp_global.csv")
+filename_regional <- paste0(output_folder, "bwp_regional.csv")
+write.csv(bwp_reg_table_global.t1, filename_global)
+write.csv(bwp_reg_table_full.t1, filename_regional)
+}
 ```
 ####Scatter Plots/Boxplots for global phenotypes
 smri_vol_cdk_total_centiles  
@@ -2120,6 +1964,13 @@ if(save_tables == TRUE){
   write.csv(save_table_full.t1, filename_all)
   write.csv(save_table_sig, filename_sig)
 }
+if(save_tables == TRUE){
+output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/Surface_Maps/"
+filename_global <- paste0(output_folder, "bw_pgs_global.csv")
+filename_regional <- paste0(output_folder, "bw_pgs_regional.csv")
+write.csv(bw_pgs_reg_table_global.t1, filename_global)
+write.csv(bw_pgs_reg_table_full.t1, filename_regional)
+}
 ```
 ####Scatter Plots/Boxplots for global phenotypes
 smri_vol_cdk_total_centiles  
@@ -2254,6 +2105,13 @@ if(save_tables == TRUE){
   filename_sig <- paste0(output_folder, "dsk_genP_sig.csv")
   write.csv(save_table_full.t1, filename_all)
   write.csv(save_table_sig, filename_sig)
+}
+if(save_tables == TRUE){
+output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/Surface_Maps/"
+filename_global <- paste0(output_folder, "gp_global.csv")
+filename_regional <- paste0(output_folder, "gp_regional.csv")
+write.csv(gp_reg_table_global.t1, filename_global)
+write.csv(gp_reg_table_full.t1, filename_regional)
 }
 ```
 ####Scatter Plots/Boxplots for global phenotypes
