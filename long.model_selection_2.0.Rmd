@@ -4,7 +4,7 @@ author: "Eren Kafadar"
 date: "2024-11-26"
 output: html_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 ```{r setup, include=FALSE}
 diagnostics <- FALSE
@@ -29,6 +29,7 @@ source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/gam
 source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/data_functions.R")
 
 source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/pred_og_centile_EK.R")
+source("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/wp_taki_EK.R")
 
 phenotypes <- readRDS("/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/ABCD_premie_code/phenotype_set.rds")
 
@@ -192,7 +193,7 @@ phenotypes_to_fit <- paste0(c(phenotypes_for_MC, global_phenotypes, "smri_vol_sc
 #GENERATE Models
 
 ```{r}
-generate = FALSE
+#generate = TRUE
 if (generate == TRUE){
 family_set <- c("GG")
 phenotype_set <- phenotypes_to_fit
@@ -419,110 +420,110 @@ plot_data_aseg <- merge(sOne_best_terms, ggseg::aseg, by = "label")
 #Regions not matched in atlases
 sOne_best_terms[!(sOne_best_terms$label %in% plot_data_dkt$label) & !(sOne_best_terms$label %in% plot_data_aseg$label),] %>% print(., row.names = FALSE)
 
-long.sOne_agemu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sOne_agemu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = age.mu)) +
   theme_void()+
-  labs(title = "Age in Mu")
+  labs(title = "Age in Mu"))
 
-long.sOne_agemu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sOne_agemu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = age.mu)) +
   theme_void() +
-  labs(title = "Age in Mu")
+  labs(title = "Age in Mu"))
 
-long.sOne_sexmu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sOne_sexmu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = sex.mu)) +
   theme_void()+
-  labs(title = "Sex in Mu")
+  labs(title = "Sex in Mu"))
 
-long.sOne_sexmu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sOne_sexmu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = sex.mu)) +
   theme_void() +
-  labs(title = "Sex in Mu")
+  labs(title = "Sex in Mu"))
 
-long.sOne_agesexmu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sOne_agesexmu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = `age:sex.mu`)) +
   theme_void()+
-  labs(title = "AgeSex in Mu")
+  labs(title = "AgeSex in Mu"))
 
-long.sOne_agesexmu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sOne_agesexmu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = `age:sex.mu`)) +
   theme_void() +
-  labs(title = "AgeSex in Mu")
+  labs(title = "AgeSex in Mu"))
 
-long.sOne_interscanmu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sOne_interscanmu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = interscan_months_t1t2.mu)) +
   theme_void()+
-  labs(title = "Interscan in Mu")
+  labs(title = "Interscan in Mu"))
 
-long.sOne_interscanmu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sOne_interscanmu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = interscan_months_t1t2.mu)) +
   theme_void() +
-  labs(title = "Interscan in Mu")
+  labs(title = "Interscan in Mu"))
 
 
-long.sOne_agesigma_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sOne_agesigma_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = age.sigma)) +
   theme_void()+
-  labs(title = "Age in Sigma")
+  labs(title = "Age in Sigma"))
 
-long.sOne_agesigma_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sOne_agesigma_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = age.sigma)) +
   theme_void() +
-  labs(title = "Age in Sigma")
+  labs(title = "Age in Sigma"))
 
-long.sOne_sexsigma_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sOne_sexsigma_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = sex.sigma)) +
   theme_void()+
-  labs(title = "Sex in Sigma")
+  labs(title = "Sex in Sigma"))
 
-long.sOne_sexsigma_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sOne_sexsigma_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = sex.sigma)) +
   theme_void() +
-  labs(title = "Sex in Sigma")
+  labs(title = "Sex in Sigma"))
 
-long.sOne_agenu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sOne_agenu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = age.nu)) +
   theme_void()+
-  labs(title = "Age in Nu")
+  labs(title = "Age in Nu"))
 
-long.sOne_agenu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sOne_agenu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = age.nu)) +
   theme_void() +
-  labs(title = "Age in Nu")
+  labs(title = "Age in Nu"))
 
-long.sOne_sexnu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sOne_sexnu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = sex.nu)) +
   theme_void()+
-  labs(title = "Sex in Nu")
+  labs(title = "Sex in Nu"))
 
-long.sOne_sexnu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sOne_sexnu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = sex.nu)) +
   theme_void() +
-  labs(title = "Sex in Nu")
+  labs(title = "Sex in Nu"))
 
 ```
 ####sTwo
@@ -547,110 +548,110 @@ plot_data_aseg <- merge(sTwo_best_terms, ggseg::aseg, by = "label")
 #Regions not matched in atlases
 sTwo_best_terms[!(sTwo_best_terms$label %in% plot_data_dkt$label) & !(sTwo_best_terms$label %in% plot_data_aseg$label),] %>% print(., row.names = FALSE)
 
-long.sTwo_agemu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sTwo_agemu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = age.mu)) +
   theme_void()+
-  labs(title = "Age in Mu")
+  labs(title = "Age in Mu"))
 
-long.sTwo_agemu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sTwo_agemu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = age.mu)) +
   theme_void() +
-  labs(title = "Age in Mu")
+  labs(title = "Age in Mu"))
 
-long.sTwo_sexmu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sTwo_sexmu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = sex.mu)) +
   theme_void()+
-  labs(title = "Sex in Mu")
+  labs(title = "Sex in Mu"))
 
-long.sTwo_sexmu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sTwo_sexmu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = sex.mu)) +
   theme_void() +
-  labs(title = "Sex in Mu")
+  labs(title = "Sex in Mu"))
 
-long.sTwo_agesexmu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sTwo_agesexmu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = `age:sex.mu`)) +
   theme_void()+
-  labs(title = "AgeSex in Mu")
+  labs(title = "AgeSex in Mu"))
 
-long.sTwo_agesexmu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sTwo_agesexmu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = `age:sex.mu`)) +
   theme_void() +
-  labs(title = "AgeSex in Mu")
+  labs(title = "AgeSex in Mu"))
 
-long.sTwo_interscanmu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sTwo_interscanmu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = interscan_months_t1t2.mu)) +
   theme_void()+
-  labs(title = "Interscan in Mu")
+  labs(title = "Interscan in Mu"))
 
-long.sTwo_interscanmu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sTwo_interscanmu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = interscan_months_t1t2.mu)) +
   theme_void() +
-  labs(title = "Interscan in Mu")
+  labs(title = "Interscan in Mu"))
 
 
-long.sTwo_agesigma_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sTwo_agesigma_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = age.sigma)) +
   theme_void()+
-  labs(title = "Age in Sigma")
+  labs(title = "Age in Sigma"))
 
-long.sTwo_agesigma_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sTwo_agesigma_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = age.sigma)) +
   theme_void() +
-  labs(title = "Age in Sigma")
+  labs(title = "Age in Sigma"))
 
-long.sTwo_sexsigma_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sTwo_sexsigma_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = sex.sigma)) +
   theme_void()+
-  labs(title = "Sex in Sigma")
+  labs(title = "Sex in Sigma"))
 
-long.sTwo_sexsigma_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sTwo_sexsigma_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = sex.sigma)) +
   theme_void() +
-  labs(title = "Sex in Sigma")
+  labs(title = "Sex in Sigma"))
 
-long.sTwo_agenu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sTwo_agenu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = age.nu)) +
   theme_void()+
-  labs(title = "Age in Nu")
+  labs(title = "Age in Nu"))
 
-long.sTwo_agenu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sTwo_agenu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = age.nu)) +
   theme_void() +
-  labs(title = "Age in Nu")
+  labs(title = "Age in Nu"))
 
-long.sTwo_sexnu_dkt_plot <- ggplot(plot_data_dkt) +
+(long.sTwo_sexnu_dkt_plot <- ggplot(plot_data_dkt) +
   geom_brain(atlas = dk, 
              position = position_brain(hemi ~ side),
              aes(fill = sex.nu)) +
   theme_void()+
-  labs(title = "Sex in Nu")
+  labs(title = "Sex in Nu"))
 
-long.sTwo_sexnu_aseg_plot <- ggplot(plot_data_aseg) +
+(long.sTwo_sexnu_aseg_plot <- ggplot(plot_data_aseg) +
   geom_brain(atlas = aseg,
              aes(fill = sex.nu)) +
   theme_void() +
-  labs(title = "Sex in Nu")
+  labs(title = "Sex in Nu"))
 ```
 ##Load best model
 ```{r}
@@ -733,7 +734,7 @@ for (i  in 1:length(refit_models_One)) {
   #print(deparse(model$mu.formula))
   model <- refit_models_One[[i]]
   phenotype <- as.character(model$mu.terms[[2]])
-  title <- name_mapping$region_name[match(phenotype, name_mapping$abbreviation)]
+  title <- name_mapping$region_name[match(sub(".t2", "", phenotype), name_mapping$abbreviation)]
       sOne_plots_refit_wp[[i]] <- wp.taki(model, ylim.worm = 0.5, xlim.worm = 4) + labs(title = title)
       sOne_wp_refit_table[i,1:3] <- wp.taki_EK(model, ylim.worm = 0.5, xlim.worm = 4, plot = FALSE) %>% select(all_of(c("n", "n_outer", "pcnt")))
       sOne_wp_refit_table[i,4] <- phenotype
@@ -759,32 +760,12 @@ sOne_wp_refit_table <- merge(sOne_wp_refit_table, sOne_fits %>% select(c("model_
 #inspect distribution of wormplots "out points"
 aggregate(pcnt ~ phenotype, data = sOne_wp_refit_table, summary)
 
-#filter lowest wormplot "out points"
-sOne_refit_best <- sOne_wp_refit_table %>%
-  group_by(phenotype) %>%
-  slice_min(pcnt, n = 1)
-
-#compare BIC of the refit chosen models with the BIC of the rest of the models for that phenotypes
-sOne_fits$best <- ifelse(sOne_fits$model_index %in% sOne_best$model_index | sOne_fits$model_index %in% sOne_refit_best$model_index, TRUE, FALSE)
-
 sOne_fits <- sOne_fits %>% group_by(phenotype) %>%
   mutate(logminBICdiff = log(BIC-min(BIC))) %>%
   mutate( minBICdiff = BIC-min(BIC)) %>%
   mutate( BICzscore = z_score(BIC)) %>%
   mutate(BICzscorediff = BICzscore-min(BICzscore)) %>%
   ungroup()
-
-sOne_fits %>% filter(label %in% sOne_refit_phenotypes$label) %>%
-  ggplot(., aes(x = logminBICdiff, y = as.character(model_index), fill = best)) + 
-  geom_histogram(stat = "identity") + 
-  facet_wrap(~label, scale = "free") +
-  ggtitle("BIC for refit") + labs(x = "scaled log BIC", y = "model index")
-
-sOne_fits %>% filter(label %in% sOne_refit_phenotypes$label) %>%
-  ggplot(., aes(x = BICzscorediff, y = as.character(model_index), fill = best)) + 
-  geom_histogram(stat = "identity") + 
-  facet_wrap(~label, scale = "free") +
-  ggtitle("BIC for refit") + labs(x = "z-score diff from min BIC", y = "model index")
 
 sOne_wp_refit_table <- merge(sOne_wp_refit_table, sOne_fits %>% select(c("model_index", "logminBICdiff", "BIC", "minBICdiff", "BICzscorediff")), all.x = TRUE, all.y = FALSE, by = "model_index")
 
@@ -795,40 +776,38 @@ sOne_wp_refit_table <- sOne_wp_refit_table %>% group_by(phenotype) %>%
   mutate(Noutzscorediff = Noutzscore-min(Noutzscore)) %>%
   ungroup()
 
-sOne_wp_refit_table$wpBIC_metric <- 0.3*sOne_wp_refit_table$BICzscorediff + 0.7*sOne_wp_refit_table$Noutzscorediff
+sOne_wp_refit_table$wpBIC_metric <- 0.45*sOne_wp_refit_table$BICzscorediff + 0.55*sOne_wp_refit_table$Noutzscorediff
 
-#sOne_wp_refit_table$wpBIC_metric <- 0.5*sOne_wp_refit_table$BIC + 0.5*sOne_wp_refit_table$pcnt
-
-sOne_refit_best2 <- sOne_wp_refit_table %>%
+sOne_refit_best <- sOne_wp_refit_table %>%
   group_by(phenotype) %>%
   slice_min(wpBIC_metric, n = 1)
 
-sOne_fits$best2 <- ifelse(sOne_fits$model_index %in% sOne_best$model_index | sOne_fits$model_index %in% sOne_refit_best2$model_index, TRUE, FALSE)
+sOne_fits$best <- ifelse(sOne_fits$model_index %in% sOne_best$model_index | sOne_fits$model_index %in% sOne_refit_best$model_index, TRUE, FALSE)
 
 sOne_fits %>% filter(label %in% sOne_refit_phenotypes$label) %>%
-  ggplot(., aes(x = logminBICdiff, y = as.character(model_index), fill = best2)) + 
+  ggplot(., aes(x = logminBICdiff, y = as.character(model_index), fill = best)) + 
   geom_histogram(stat = "identity") + 
   facet_wrap(~label, scale = "free") +
-  ggtitle("BIC for refit 2") + labs(x = "scaled log BIC", y = "model index")
+  ggtitle("BIC for refit") + labs(x = "scaled log BIC", y = "model index")
 
-sOne_wp_refit_table$best2 <- sOne_wp_refit_table$model_index %in% sOne_refit_best2$model_index
+sOne_wp_refit_table$best <- sOne_wp_refit_table$model_index %in% sOne_refit_best$model_index
 
 sOne_wp_refit_table %>% 
-  ggplot(., aes(x = logminNoutdiff, y = as.character(model_index), fill = best2)) + 
+  ggplot(., aes(x = pcnt, y = as.character(model_index), fill = best)) + 
   geom_histogram(stat = "identity") + 
   facet_wrap(~label, scale = "free") +
-  ggtitle("BIC for refit 2") + labs(x = "scaled log Nout", y = "model index")
+  ggtitle("Nout for refit") + labs(x = "% out of bounds", y = "model index")
 
 
 ```
 ####adjust best Models based on wp metrics
 ```{r}
 #add best model indices from the lowest BIC best models
-sOne_final_best_model_index <- sOne_fits %>% filter(!(label %in% sOne_refit_phenotypes)) %>% select(model_index)
+sOne_final_best_model_index <- sOne_best %>% filter(!(label %in% sOne_refit_phenotypes$label)) %>% select(model_index)
 #add best model indices from the BIC+wp combined metric
-sOne_final_best_model_index <- c(sOne_final_best_model_index, sOne_refit_best$model_index)
+sOne_final_best_model_index <- c(sOne_final_best_model_index$model_index, sOne_refit_best$model_index)
 #load all new best models
-sOne_best_list <- paste0(splitOne_folder,"gamlssFIT_",final_best_model_index$model_index,".rds")
+sOne_best_list <- paste0(splitOne_folder,"gamlssFIT_",sOne_final_best_model_index,".rds")
 best_models_One <- lapply(sOne_best_list, readRDS)
 ```
 ###sTwo
@@ -836,7 +815,7 @@ best_models_One <- lapply(sOne_best_list, readRDS)
 ```{r}
 #diagnostics = TRUE
 if(diagnostics == TRUE){
-plot <- TRUE
+plot <- FALSE
 sTwo_plots_wp <- vector(mode = "list", length = dim(sTwo_best)[1])
 sTwo_wp_table <- data.frame(matrix(NA, nrow = dim(sTwo_best)[1], ncol = 5))
 names(sTwo_wp_table) <- c("n", "n_outer", "pcnt", "phenotype", "label")
@@ -862,6 +841,21 @@ for(k in 1:length(breaks)){
   do.call("grid.arrange", c(sTwo_plots_wp[start:end], ncol=nCol))
 }
 }
+sum(sTwo_wp_table$pcnt > 0.05)
+sTwo_wp_toplot <- sTwo_plots_wp[which(sTwo_wp_table$pcnt > 0.05)]
+
+n <- length(sTwo_wp_toplot)
+nCol <- min(c(floor(sqrt(n)), 4))
+nRow <- min(ceiling(n/nCol), 4)
+breaks <- c(seq(from = 0, to = n , by = (nCol*nRow)), n)
+if(breaks[length(breaks)] == breaks[length(breaks)-1]){
+  breaks <- breaks[-length(breaks)]
+}
+for(k in 1:length(breaks)){
+  start <- breaks[k] + 1
+  end <- breaks[k+1]
+  do.call("grid.arrange", c(sTwo_wp_toplot[start:end], ncol=nCol))
+}
 }
 ```
 ####get the model with the best wormplot for each phenotype that has >5% points outside for the best BIC
@@ -886,7 +880,7 @@ for (i  in 1:length(refit_models_One)) {
   #print(deparse(model$mu.formula))
   model <- refit_models_One[[i]]
   phenotype <- as.character(model$mu.terms[[2]])
-  title <- name_mapping$region_name[match(phenotype, name_mapping$abbreviation)]
+  title <- name_mapping$region_name[match(sub(".t2", "", phenotype), name_mapping$abbreviation)]
       sTwo_plots_refit_wp[[i]] <- wp.taki(model, ylim.worm = 0.5, xlim.worm = 4) + labs(title = title)
       sTwo_wp_refit_table[i,1:3] <- wp.taki_EK(model, ylim.worm = 0.5, xlim.worm = 4, plot = FALSE) %>% select(all_of(c("n", "n_outer", "pcnt")))
       sTwo_wp_refit_table[i,4] <- phenotype
@@ -912,32 +906,12 @@ sTwo_wp_refit_table <- merge(sTwo_wp_refit_table, sTwo_fits %>% select(c("model_
 #inspect distribution of wormplots "out points"
 aggregate(pcnt ~ phenotype, data = sTwo_wp_refit_table, summary)
 
-#filter lowest wormplot "out points"
-sTwo_refit_best <- sTwo_wp_refit_table %>%
-  group_by(phenotype) %>%
-  slice_min(pcnt, n = 1)
-
-#compare BIC of the refit chosen models with the BIC of the rest of the models for that phenotypes
-sTwo_fits$best <- ifelse(sTwo_fits$model_index %in% sTwo_best$model_index | sTwo_fits$model_index %in% sTwo_refit_best$model_index, TRUE, FALSE)
-
 sTwo_fits <- sTwo_fits %>% group_by(phenotype) %>%
   mutate(logminBICdiff = log(BIC-min(BIC))) %>%
   mutate( minBICdiff = BIC-min(BIC)) %>%
   mutate( BICzscore = z_score(BIC)) %>%
   mutate(BICzscorediff = BICzscore-min(BICzscore)) %>%
   ungroup()
-
-sTwo_fits %>% filter(label %in% sTwo_refit_phenotypes$label) %>%
-  ggplot(., aes(x = logminBICdiff, y = as.character(model_index), fill = best)) + 
-  geom_histogram(stat = "identity") + 
-  facet_wrap(~label, scale = "free") +
-  ggtitle("BIC for refit") + labs(x = "scaled log BIC", y = "model index")
-
-sTwo_fits %>% filter(label %in% sTwo_refit_phenotypes$label) %>%
-  ggplot(., aes(x = BICzscorediff, y = as.character(model_index), fill = best)) + 
-  geom_histogram(stat = "identity") + 
-  facet_wrap(~label, scale = "free") +
-  ggtitle("BIC for refit") + labs(x = "z-score diff from min BIC", y = "model index")
 
 sTwo_wp_refit_table <- merge(sTwo_wp_refit_table, sTwo_fits %>% select(c("model_index", "logminBICdiff", "BIC", "minBICdiff", "BICzscorediff")), all.x = TRUE, all.y = FALSE, by = "model_index")
 
@@ -948,40 +922,38 @@ sTwo_wp_refit_table <- sTwo_wp_refit_table %>% group_by(phenotype) %>%
   mutate(Noutzscorediff = Noutzscore-min(Noutzscore)) %>%
   ungroup()
 
-sTwo_wp_refit_table$wpBIC_metric <- 0.3*sTwo_wp_refit_table$BICzscorediff + 0.7*sTwo_wp_refit_table$Noutzscorediff
+sTwo_wp_refit_table$wpBIC_metric <- 0.45*sTwo_wp_refit_table$BICzscorediff + 0.55*sTwo_wp_refit_table$Noutzscorediff
 
-#sTwo_wp_refit_table$wpBIC_metric <- 0.5*sTwo_wp_refit_table$BIC + 0.5*sTwo_wp_refit_table$pcnt
-
-sTwo_refit_best2 <- sTwo_wp_refit_table %>%
+sTwo_refit_best <- sTwo_wp_refit_table %>%
   group_by(phenotype) %>%
   slice_min(wpBIC_metric, n = 1)
 
-sTwo_fits$best2 <- ifelse(sTwo_fits$model_index %in% sTwo_best$model_index | sTwo_fits$model_index %in% sTwo_refit_best2$model_index, TRUE, FALSE)
+sTwo_fits$best <- ifelse(sTwo_fits$model_index %in% sTwo_best$model_index | sTwo_fits$model_index %in% sTwo_refit_best$model_index, TRUE, FALSE)
 
 sTwo_fits %>% filter(label %in% sTwo_refit_phenotypes$label) %>%
-  ggplot(., aes(x = logminBICdiff, y = as.character(model_index), fill = best2)) + 
+  ggplot(., aes(x = logminBICdiff, y = as.character(model_index), fill = best)) + 
   geom_histogram(stat = "identity") + 
   facet_wrap(~label, scale = "free") +
-  ggtitle("BIC for refit 2") + labs(x = "scaled log BIC", y = "model index")
+  ggtitle("BIC for refit") + labs(x = "scaled log BIC", y = "model index")
 
-sTwo_wp_refit_table$best2 <- sTwo_wp_refit_table$model_index %in% sTwo_refit_best2$model_index
+sTwo_wp_refit_table$best <- sTwo_wp_refit_table$model_index %in% sTwo_refit_best$model_index
 
 sTwo_wp_refit_table %>% 
-  ggplot(., aes(x = logminNoutdiff, y = as.character(model_index), fill = best2)) + 
+  ggplot(., aes(x = pcnt, y = as.character(model_index), fill = best)) + 
   geom_histogram(stat = "identity") + 
   facet_wrap(~label, scale = "free") +
-  ggtitle("BIC for refit 2") + labs(x = "scaled log Nout", y = "model index")
+  ggtitle("Nout for refit") + labs(x = "% out of bounds", y = "model index")
 
 
 ```
 ####adjust best Models based on wp metrics
 ```{r}
 #add best model indices from the lowest BIC best models
-sTwo_final_best_model_index <- sTwo_fits %>% filter(!(label %in% sTwo_refit_phenotypes)) %>% select(model_index)
+sTwo_final_best_model_index <- sTwo_best %>% filter(!(label %in% sTwo_refit_phenotypes$label)) %>% select(model_index)
 #add best model indices from the BIC+wp combined metric
-sTwo_final_best_model_index <- c(sTwo_final_best_model_index, sTwo_refit_best$model_index)
+sTwo_final_best_model_index <- c(sTwo_final_best_model_index$model_index, sTwo_refit_best$model_index)
 #load all new best models
-sTwo_best_list <- paste0(splitTwo_folder,"gamlssFIT_",final_best_model_index$model_index,".rds")
+sTwo_best_list <- paste0(splitTwo_folder,"gamlssFIT_",sTwo_final_best_model_index,".rds")
 best_models_Two <- lapply(sTwo_best_list, readRDS)
 ```
 ##cent-cdf
@@ -1301,7 +1273,7 @@ print(paste0("Correlation Coefficient Split Two, ", title_two, cor_two$estimate,
 ##Save calculated centiles
 Save in single dataframe with columns for participant ID and split ID
 ```{r}
-save_fits == TRUE
+save_fits = TRUE
 if(save_fits == TRUE){
 output_folder <-"/mnt/isilon/bgdlab_processing/Eren/ABCD-braincharts/2.0_results/centiles_calculated/"
 filename <- paste0(output_folder, "long.volume_centiles_", Sys.Date(), ".csv")
@@ -1350,8 +1322,5 @@ kstest_two <- as.data.frame(t(sapply(sTwo_test_df[, grepl("centiles", names(sTwo
 })))
 
 kstest_two$p_adj <- p.adjust(kstest_two$p_value, method = "BH")
-kstest_two$label <- name_mapping$region_name[match(sub(".t2sum_centiles","",rownames(kstest_two)), name_mapping$abbreviation)]
-
-kstest_two %>% filter(p_adj < 0.05) %>% select(label)
-
+m
 ```
